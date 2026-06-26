@@ -20,6 +20,10 @@ cpp_merge_mode: admin-squash
 # NEVER write these cpp paths (control plane):
 cpp_forbidden_paths: _ops/ .github/
 
+# --- LD's local cpp working tree (dedup target; single-master-copy swap, WS-8) ---
+# The live swap is DEFERRED (Deviation-1): a symlink here is git-tracked + would leak an ld path.
+ld_cpp_worktree: ~/dev/affirm/src/card-platform-product
+
 # --- Work area (out-of-tree clone; gitignored) ---
 work_clone_dir: ~/.orchestrator-work/cpp-clone
 backup_dir: ~/.reorg-archives
