@@ -1,3 +1,5 @@
 # config/managed-items.txt — global capability ids the orchestrator keeps synced into cpp/quiver.
-# One id per line (matches a dir under source_skills_global). `orchestrator sync` reconciles each.
+# One id per line. Masters resolve under source_skills_global (skills) or source_mcp_local (mcp).
+# `orchestrator sync` reconciles each.
 prompt-architect
+google-kit

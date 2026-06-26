@@ -31,11 +31,21 @@ done
 
 QUIVER="$(orch_cfg_get cpp_quiver_path)"; QUIVER="${QUIVER:-quiver}"
 SRC_GLOBAL="$(orch_expand "$(orch_cfg_get source_skills_global)")"
+SRC_MCP_LOCAL="$(orch_expand "$(orch_cfg_get source_mcp_local)")"
 [ -n "$CPP_DIR" ] || CPP_DIR="$(orch_expand "$(orch_cfg_get ld_cpp_worktree)")"
 MANAGED="$ORCH_ROOT/config/managed-items.txt"
 
 [ -d "$SRC_GLOBAL" ] || { orch_err "consistency: master skills dir missing: $SRC_GLOBAL"; exit 2; }
 [ -d "$CPP_DIR" ]    || { orch_err "consistency: cpp tree not found: $CPP_DIR (pass --cpp-dir or set ld_cpp_worktree)"; exit 2; }
+
+# Resolve a master capability dir by id. Skills live under source_skills_global; mcp masters
+# live flat under source_mcp_local. Returns empty on miss.
+resolve_master() {
+  local id="$1"
+  if [ -d "$SRC_GLOBAL/$id" ]; then printf '%s\n' "$SRC_GLOBAL/$id"; return 0; fi
+  if [ -n "$SRC_MCP_LOCAL" ] && [ -d "$SRC_MCP_LOCAL/$id" ]; then printf '%s\n' "$SRC_MCP_LOCAL/$id"; return 0; fi
+  return 1
+}
 
 if [ "${#ids[@]}" -eq 0 ] && [ -f "$MANAGED" ]; then
   while IFS= read -r line; do
@@ -56,11 +66,36 @@ shared_list() {
 echo "== orchestrator consistency (master <-> cpp vendored payload) =="
 drift=0
 for id in "${ids[@]}"; do
-  master="$SRC_GLOBAL/$id"
-  if [ ! -d "$master" ]; then printf '  DRIFT  %s: master missing (%s)\n' "$id" "$master"; drift=1; continue; fi
+  master="$(resolve_master "$id" || true)"
+  if [ -z "$master" ]; then printf '  DRIFT  %s: master missing (no skills/global or mcp/<id>)\n' "$id"; drift=1; continue; fi
   target="$(cd "$CPP_DIR" && for d in "$QUIVER"/*/"$id"; do [ -e "$d" ] && { printf '%s/%s\n' "$CPP_DIR" "$d"; break; }; done)"
   if [ -z "$target" ]; then printf '  DRIFT  %s: not vendored under %s/%s/*\n' "$id" "$CPP_DIR" "$QUIVER"; drift=1; continue; fi
   if [ -L "$target" ]; then printf '  DRIFT  %s: vendored path is a LEGACY symlink — un-arm with dedup.sh --reverse\n' "$id"; drift=1; continue; fi
+
+  # Kind-aware comparison. For `kind: mcp` masters the orchestrator vendors a SOURCE-FREE,
+  # ld-agnostic discoverability descriptor (README.md + VENDORED.md + meta.yml only). Comparing
+  # the master's source tree would always flag every source file as "missing in cpp payload",
+  # so for mcp we assert descriptor shape instead: required files present, NO unexpected source.
+  kind="$(awk -F': *' '/^kind:/{print $2; exit}' "$master/meta.yml" 2>/dev/null)"
+  if [ "$kind" = "mcp" ]; then
+    item_drift=0
+    for f in README.md VENDORED.md meta.yml; do
+      [ -f "$target/$f" ] || { printf '  DRIFT  %s: missing in cpp mcp descriptor: %s\n' "$id" "$f"; item_drift=1; }
+    done
+    while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      case "$f" in
+        README.md|VENDORED.md|meta.yml) ;;
+        *) printf '  DRIFT  %s: unexpected source file in cpp mcp descriptor: %s\n' "$id" "$f"; item_drift=1 ;;
+      esac
+    done <<EOF
+$(cd "$target" 2>/dev/null && find . -type f ! -path '*/.git/*' | sed 's|^\./||' | LC_ALL=C sort)
+EOF
+    [ "$item_drift" = 0 ] && printf '  OK     %s: cpp mcp descriptor present (ld-agnostic; no source)\n' "$id" || drift=1
+    continue
+  fi
+
+  # Default (skill / workflow / asset / etc): master<->payload byte comparison over shared content.
   item_drift=0
   while IFS= read -r f; do
     [ -n "$f" ] || continue
