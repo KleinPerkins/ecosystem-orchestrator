@@ -20,8 +20,10 @@ cpp_merge_mode: admin-squash
 # NEVER write these cpp paths (control plane):
 cpp_forbidden_paths: _ops/ .github/
 
-# --- LD's local cpp working tree (dedup target; single-master-copy swap, WS-8) ---
-# The live swap is DEFERRED (Deviation-1): a symlink here is git-tracked + would leak an ld path.
+# --- LD's local cpp working tree (Decision A: symlink-dedup ABANDONED; consistency-check target) ---
+# Symlink-dedup is retired — unsafe (routine cpp git ops write THROUGH the link into the global SOT)
+# and semantically wrong (master != vendored payload). cpp keeps the REAL vendored copy; integrity is
+# enforced by `orchestrator consistency` (lib/consistency.sh), NOT by collapsing the copies.
 ld_cpp_worktree: ~/dev/affirm/src/card-platform-product
 
 # --- Work area (out-of-tree clone; gitignored) ---

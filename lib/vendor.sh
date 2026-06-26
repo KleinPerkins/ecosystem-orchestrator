@@ -3,28 +3,34 @@
 # ld->cpp edge. Builds a SELF-SUFFICIENT, ld-agnostic copy of a global capability and lands it in
 # cpp/quiver via an LD-authored GOVERNED PR; the delete path propagates a master removal the same way.
 #
-#   vendor.sh [--delete] [--execute] [--cpp-dir DIR] <id>
+#   vendor.sh [--delete] [--execute] [--break-glass-admin] [--cpp-dir DIR] <id>
 #     (default)     DRY-RUN: clone/refresh a work clone, build+stage payload (correct cpp quiver
 #                   category + a translated cpp-schema meta.yml), assert zero-link, run cpp's
 #                   integrity engine locally, commit on a branch. NO push / NO PR.
-#     --execute     additionally push the branch, open the PR, and (GATED on integrity green) land it
-#                   via `gh pr merge --admin --squash` (open item #1).
+#     --execute     additionally push the branch, open the PR, and (GATED on integrity green) enable
+#                   GitHub NATIVE auto-merge (`gh pr merge --auto --squash`). Decision B: routine
+#                   landing relies on cpp's server-side required checks + the @affirm-cpp-bot
+#                   CODEOWNER auto-approval — NO human reviewer, NO admin bypass.
+#     --break-glass-admin   EMERGENCY ONLY: land via `gh pr merge --admin --squash`, bypassing cpp's
+#                   server-side checks + CODEOWNERS. Off by default; also gated by ORCH_VENDOR_BREAKGLASS_ADMIN=1.
 #     --delete      removal mode: git rm the vendored quiver/<cat>/<id> instead of writing it.
 #     --cpp-dir DIR use an existing git tree as the cpp clone (tests/fixtures; skips network clone).
 #
 # SAFETY: never writes cpp control-plane paths (_ops/ .github/) — relies on cpp's WILDCARD
 # /quiver/ ownership so a quiver-only add needs no CODEOWNERS/ownership regen; aborts if the staged
-# payload trips zero-link (mode cpp); merge is gated on a GREEN local engine verdict, never forced.
+# payload trips zero-link (mode cpp); the local engine gate must be GREEN before any push; the routine
+# landing path NEVER force-merges (auto-merge waits for cpp's own checks + bot approval).
 set -uo pipefail
 VEN_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 . "$VEN_LIB_DIR/common.sh"
 
-DELETE=0 EXECUTE=0 CPP_DIR=""
+DELETE=0 EXECUTE=0 CPP_DIR="" BREAKGLASS="${ORCH_VENDOR_BREAKGLASS_ADMIN:-0}"
 args=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --delete)  DELETE=1 ;;
     --execute) EXECUTE=1 ;;
+    --break-glass-admin) BREAKGLASS=1 ;;
     --cpp-dir) CPP_DIR="${2:-}"; shift ;;
     -*) orch_err "unknown flag: $1"; exit 2 ;;
     *) args+=("$1") ;;
@@ -55,17 +61,22 @@ cpp_category_for_kind() {
   esac
 }
 
-# Map a kp kind onto cpp's CLOSED quiver meta `kind` enum (the singular of the category). Passing an
-# unmapped kp kind (doc/asset/tool/…) straight through trips cpp's schema validation — so without this
-# only `skill` would ever vendor green. Keep this in lockstep with cpp_category_for_kind above.
+# Map a kp kind onto cpp's CLOSED quiver meta `kind` enum, which is EXACTLY:
+#   skill | workflow | asset | mcp | doc | data   (_ops/schemas/meta.schema.json, additionalProperties:false)
+# Anything outside this set trips cpp schema validation, so kp kinds with no cpp equivalent are folded
+# onto the nearest legal value: rule -> doc (documentation-like); tool/tooling -> asset; sub-agent ->
+# asset (cpp has no sub-agent KIND even though it has a sub-agents CATEGORY dir). Without this only
+# `skill` would ever vendor green. Keep the legal set in lockstep with cpp's meta.schema.json.
 cpp_kind_for_kind() {
   case "$1" in
     skill)              printf 'skill\n' ;;
     workflow)           printf 'workflow\n' ;;
     mcp)                printf 'mcp\n' ;;
-    sub-agent|subagent) printf 'sub-agent\n' ;;
-    rule|doc)           printf 'rule\n' ;;
-    asset|data|tool|tooling) printf 'tooling\n' ;;
+    doc)                printf 'doc\n' ;;
+    data)               printf 'data\n' ;;
+    asset|tool|tooling) printf 'asset\n' ;;
+    rule)               printf 'doc\n' ;;
+    sub-agent|subagent) printf 'asset\n' ;;
     *)                  printf 'skill\n' ;;
   esac
 }
@@ -145,6 +156,9 @@ EOF
 
 build_payload() {
   local dst="$WORK/$REL"
+  # Guard the destructive refresh: $dst must be a safe (deep, absolute) path so a mis-set WORK/REL can
+  # never `rm -rf` a top-level dir or $HOME (item-21 hardening; $dst is always $WORK/quiver/<cat>/<id>).
+  orch_guard_rmrf "$dst" || { orch_err "build_payload: refusing to rebuild unsafe path '$dst'"; exit 1; }
   rm -rf "$dst"; mkdir -p "$dst"
   ( cd "$MASTER" && tar --exclude='./meta.yml' --exclude='./install.sh' \
         --exclude='./.git' --exclude='./__pycache__' --exclude='*.pyc' -cf - . ) | ( cd "$dst" && tar -xf - )
@@ -226,18 +240,36 @@ if [ "$EXECUTE" != 1 ]; then
   exit 0
 fi
 
-# --- EXECUTE: push + governed PR + gated admin-squash merge ---------------------------------------
+# --- EXECUTE: push + governed PR + landing (Decision B) -------------------------------------------
+# Routine landing = GitHub NATIVE auto-merge: enable `--auto --squash` and let cpp's OWN server-side
+# required checks + the @affirm-cpp-bot CODEOWNER auto-approval gate the merge. No human reviewer is
+# required for a quiver-only PR, and the orchestrator NEVER force-merges on the routine path. `--admin`
+# (bypass) is BREAK-GLASS only, behind --break-glass-admin / ORCH_VENDOR_BREAKGLASS_ADMIN=1.
 if [ "$GATE" = "red" ]; then orch_err "gate RED — refusing to push a failing PR (Deviation-2). Branch kept: $BRANCH"; exit 1; fi
 command -v gh >/dev/null 2>&1 || { orch_err "gh not available; cannot open PR"; exit 1; }
 git -C "$WORK" push -u origin "$BRANCH" >/dev/null 2>&1 || { orch_err "push failed"; exit 1; }
 CPP_REPO="$(orch_cfg_get cpp_repo)"
+PR_BODY="Automated by the ecosystem orchestrator (LD-authored, quiver-only). Local cpp-integrity-engine gate: $GATE.
+Landing via GitHub native auto-merge — gated by cpp's required checks + @affirm-cpp-bot CODEOWNER approval (no human reviewer; no admin bypass)."
 PR_URL="$(gh pr create --repo "$CPP_REPO" --base "$DEFAULT_BRANCH" --head "$BRANCH" \
-            --title "$MSG" --body "Automated by the ecosystem orchestrator (LD-authored). Local cpp-integrity-engine gate: $GATE." 2>/dev/null || true)"
+            --title "$MSG" --body "$PR_BODY" 2>/dev/null || true)"
 [ -n "$PR_URL" ] && orch_log "PR: $PR_URL" || { orch_err "PR create failed"; exit 1; }
-if [ "$GATE" = "green" ]; then
-  orch_log "gate green -> landing via admin-squash"
-  if gh pr merge "$PR_URL" --repo "$CPP_REPO" --admin --squash --delete-branch >/dev/null 2>&1; then orch_log "merged: $PR_URL"
-  else orch_warn "admin-squash merge failed; PR left open for operator: $PR_URL"; exit 1; fi
+
+if [ "$GATE" != "green" ]; then
+  orch_warn "gate=$GATE -> PR left OPEN for operator review: $PR_URL"; exit 0
+fi
+
+if [ "$BREAKGLASS" = 1 ]; then
+  orch_warn "BREAK-GLASS: landing via --admin (bypasses cpp server checks + CODEOWNERS). PR: $PR_URL"
+  if gh pr merge "$PR_URL" --repo "$CPP_REPO" --admin --squash --delete-branch >/dev/null 2>&1; then orch_log "break-glass merged: $PR_URL"
+  else orch_warn "break-glass admin merge failed; PR left open: $PR_URL"; exit 1; fi
 else
-  orch_warn "gate=$GATE -> PR left OPEN for operator review: $PR_URL"
+  orch_log "gate green -> enabling GitHub native auto-merge (squash); cpp checks + bot approval will land it"
+  if gh pr merge "$PR_URL" --repo "$CPP_REPO" --auto --squash --delete-branch >/dev/null 2>&1; then
+    orch_log "auto-merge enabled: $PR_URL (merges once cpp required checks pass + @affirm-cpp-bot approves)"
+  else
+    orch_warn "could not enable auto-merge (repo 'Allow auto-merge' off, or not yet mergeable). PR left OPEN: $PR_URL"
+    orch_warn "operator: confirm cpp repo allows auto-merge + bot auto-approves orchestrator quiver PRs (governance follow-up)."
+    exit 0
+  fi
 fi
