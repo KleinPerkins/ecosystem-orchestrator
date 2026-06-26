@@ -81,12 +81,15 @@ cmd_sync() {
   local execute=0; [ "${1:-}" = "--execute" ] && execute=1
   local ids; ids="$(managed_ids)"
   [ -n "$ids" ] || { orch_log "sync: no managed items"; return 0; }
-  local rc=0
+  local rc=0 cpp; cpp="$(orch_expand "$(orch_cfg_get ld_cpp_worktree)")"
   while IFS= read -r id; do
     [ -n "$id" ] || continue
     orch_log "sync: $id ($([ "$execute" = 1 ] && echo execute || echo dry-run))"
     if [ "$execute" = 1 ]; then bash "$ORCH_ROOT/lib/vendor.sh" --execute "$id" || rc=1
     else bash "$ORCH_ROOT/lib/vendor.sh" "$id" || rc=1; fi
+    # If this item is deduped in the local cpp worktree, re-assert skip-worktree so a re-sync that
+    # rewrites the copy can never leave cpp dirty (no-op when not deduped). Local-only; best-effort.
+    [ -d "$cpp" ] && bash "$ORCH_ROOT/lib/dedup.sh" --reassert --cpp-dir "$cpp" "$id" >/dev/null 2>&1 || true
   done <<< "$ids"
   return "$rc"
 }
