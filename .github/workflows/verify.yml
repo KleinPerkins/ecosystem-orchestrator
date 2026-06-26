@@ -1,0 +1,81 @@
+name: verify
+
+# Minimal CI for KleinPerkins/ecosystem-orchestrator. Added 2026-06-26 to give the orchestrator
+# remote enforcement for the first time — until now, regressions in vendor.sh / consistency.sh
+# were caught only by LD running the dev-repo regression suite locally. Two gates:
+#   - shellcheck on bin/*.sh + lib/*.sh (catches a wide class of bash bugs cheaply)
+#   - a hermetic smoke that sources payload.sh + invokes its generators against a tmpdir master
+#     fixture, asserting the descriptor + cpp meta render is well-formed. This protects the new
+#     Phase-3 byte-compare contract (consistency.sh's regen-and-cmp depends on payload.sh
+#     producing identical output to vendor.sh's tarred payload).
+#
+# Proportional to a solo repo — bash + shellcheck only; no Python, no MCP, no secrets.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install shellcheck
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+      - name: shellcheck bin + lib
+        # SC1091 = "Not following: <file>": sourced files resolve at runtime via common.sh;
+        # don't fail CI for that. Other findings still surface.
+        run: shellcheck -e SC1091 bin/*.sh lib/*.sh
+
+  payload-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: payload.sh generators (mcp descriptor + cpp meta)
+        run: |
+          set -euo pipefail
+          # Hermetic fixture: a minimal kind:mcp master + an empty dst.
+          tmp="$(mktemp -d)"
+          mkdir -p "$tmp/master" "$tmp/dst"
+          cat > "$tmp/master/meta.yml" <<EOF
+          schema: kp-capability/v1
+          id: smoke-kit
+          kind: mcp
+          flavor: 1
+          scope: global
+          owner: KleinPerkins
+          install: install.sh
+          post_mgmt: none
+          EOF
+          # Source the lib and exercise the public generators.
+          . lib/payload.sh
+          payload_emit_mcp_descriptor "$tmp/dst" smoke-kit
+          payload_emit_vendored_md    "$tmp/dst" smoke-kit
+          payload_emit_cpp_meta       "$tmp/dst" smoke-kit "$tmp/master" ""
+          # Required files present.
+          for f in README.md VENDORED.md meta.yml; do
+            [ -f "$tmp/dst/$f" ] || { echo "FAIL: $f not generated"; exit 1; }
+          done
+          # Zero-link: no ld tokens in the descriptor.
+          re='KleinPerkins/[A-Za-z0-9_.-]+|kp-mcp|ecosystem-orchestrator|/Users/laurence\.duggan|/dev/capabilities|(^|[^A-Za-z])~/dev'
+          if grep -REnI "$re" "$tmp/dst" >/dev/null; then
+            echo "FAIL: ld tokens leaked into the cpp descriptor:"; grep -REnI "$re" "$tmp/dst" | sed 's/^/  /'
+            exit 1
+          fi
+          # Idempotent: a second run produces byte-identical output.
+          mkdir -p "$tmp/dst2"
+          payload_emit_mcp_descriptor "$tmp/dst2" smoke-kit
+          payload_emit_vendored_md    "$tmp/dst2" smoke-kit
+          payload_emit_cpp_meta       "$tmp/dst2" smoke-kit "$tmp/master" "$(cat "$tmp/dst/meta.yml")"
+          diff -q "$tmp/dst/README.md"  "$tmp/dst2/README.md"
+          diff -q "$tmp/dst/VENDORED.md" "$tmp/dst2/VENDORED.md"
+          diff -q "$tmp/dst/meta.yml"   "$tmp/dst2/meta.yml"
+          echo "payload-smoke: OK"

@@ -1,5 +1,18 @@
 # config/managed-items.txt — global capability ids the orchestrator keeps synced into cpp/quiver.
-# One id per line. Masters resolve under source_skills_global (skills) or source_mcp_local (mcp).
+#
+# One enrolled id per line (blank lines and `# ...` comments are ignored).
+# Masters resolve under source_skills_global (skills) or source_mcp_local (kind: mcp).
 # `orchestrator sync` reconciles each.
+#
+# Intentional exclusions:
+#   Some scope:global capabilities are NOT enrolled for vendoring on purpose. Mark them with an
+#   `# excluded: <id> -- <reason>` line; `orchestrator consistency` recognizes the marker so the
+#   enrollment-drift check (added 2026-06-26) treats them as expected omissions instead of drift.
+#   Format is strict: `excluded:` followed by whitespace, then the id token, then `--` and the
+#   reason text.
+#
+# excluded: agent-route -- machine-local workspace router (launchd + per-machine hooks; not
+#   meaningful as a cpp-vendored copy; runs only on the operator's own dev box).
+
 prompt-architect
 google-kit

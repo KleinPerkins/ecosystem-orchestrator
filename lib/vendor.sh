@@ -23,6 +23,7 @@
 set -uo pipefail
 VEN_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 . "$VEN_LIB_DIR/common.sh"
+. "$VEN_LIB_DIR/payload.sh"
 
 DELETE=0 EXECUTE=0 CPP_DIR="" BREAKGLASS="${ORCH_VENDOR_BREAKGLASS_ADMIN:-0}"
 args=()
@@ -57,41 +58,26 @@ resolve_master() {
 }
 MASTER="$(resolve_master 2>/dev/null || true)"
 [ -n "$MASTER" ] || MASTER="$SRC_GLOBAL/$ID"  # placeholder for delete-mode / "not found" error msg
+
+# Defense-in-depth scope gate (Option A; 2026-06-26): the orchestrator MUST NEVER vendor a
+# non-global master into cpp. Skill masters get this for free via the directory paradigm (only
+# global/ skills resolve under SRC_GLOBAL); kind:mcp lives flat under SRC_MCP_LOCAL, so the
+# manifest's explicit `scope:` is the gate. Delete mode is exempt (the master may be absent).
+if [ "$DELETE" != 1 ] && [ -d "$MASTER" ]; then
+  MSCOPE="$(awk -F': *' '/^scope:/{print $2; exit}' "$MASTER/meta.yml" 2>/dev/null | tr -d '"' | tr -d "'" | tr -d '[:space:]')"
+  if [ -n "$MSCOPE" ] && [ "$MSCOPE" != "global" ]; then
+    orch_err "refusing to vendor: master $ID declares scope='$MSCOPE' (only scope:global is vendorable to cpp)"
+    exit 1
+  fi
+fi
+
 TS="$(date +%Y%m%d-%H%M%S)"
 BRANCH="$PREFIX/$ID-$TS"; [ "$DELETE" = 1 ] && BRANCH="$PREFIX/rm-$ID-$TS"
 
-# cpp quiver categories: skills mcp rules sub-agents tooling workflows. Map a kp kind onto one.
-cpp_category_for_kind() {
-  case "$1" in
-    skill)            printf 'skills\n' ;;
-    workflow)         printf 'workflows\n' ;;
-    mcp)              printf 'mcp\n' ;;
-    sub-agent|subagent) printf 'sub-agents\n' ;;
-    rule|doc)         printf 'rules\n' ;;
-    asset|data|tool|tooling) printf 'tooling\n' ;;
-    *)                printf 'skills\n' ;;
-  esac
-}
-
-# Map a kp kind onto cpp's CLOSED quiver meta `kind` enum, which is EXACTLY:
-#   skill | workflow | asset | mcp | doc | data   (_ops/schemas/meta.schema.json, additionalProperties:false)
-# Anything outside this set trips cpp schema validation, so kp kinds with no cpp equivalent are folded
-# onto the nearest legal value: rule -> doc (documentation-like); tool/tooling -> asset; sub-agent ->
-# asset (cpp has no sub-agent KIND even though it has a sub-agents CATEGORY dir). Without this only
-# `skill` would ever vendor green. Keep the legal set in lockstep with cpp's meta.schema.json.
-cpp_kind_for_kind() {
-  case "$1" in
-    skill)              printf 'skill\n' ;;
-    workflow)           printf 'workflow\n' ;;
-    mcp)                printf 'mcp\n' ;;
-    doc)                printf 'doc\n' ;;
-    data)               printf 'data\n' ;;
-    asset|tool|tooling) printf 'asset\n' ;;
-    rule)               printf 'doc\n' ;;
-    sub-agent|subagent) printf 'asset\n' ;;
-    *)                  printf 'skill\n' ;;
-  esac
-}
+# cpp category + kind translations now live in lib/payload.sh (shared with consistency.sh).
+# Thin wrappers preserve the legacy call-site names used below.
+cpp_category_for_kind() { payload_cpp_category_for_kind "$1"; }
+cpp_kind_for_kind()     { payload_cpp_kind_for_kind "$1"; }
 
 prepare_clone() {
   if [ -n "$CPP_DIR" ]; then
@@ -132,80 +118,14 @@ set_cpp_identity() {
   orch_log "cpp commit identity: $name <$email>"
 }
 
-# Translate the kp-capability/v1 master meta into cpp's CLOSED quiver meta schema (meta.schema.json).
+# Translated cpp-quiver meta + mcp descriptor + VENDORED.md generators live in lib/payload.sh
+# (shared with consistency.sh so regen-and-cmp is byte-identical to vendor output).
 emit_cpp_meta() {
-  local dst="$1" mm="$MASTER/meta.yml" kind cppkind owner title today kws created updated base_meta
-  kind="$(awk -F': *' '/^kind:/{print $2; exit}'  "$mm" 2>/dev/null)";  kind="${kind:-skill}"
-  cppkind="$(cpp_kind_for_kind "$kind")"
-  owner="$(awk -F': *' '/^owner:/{print $2; exit}' "$mm" 2>/dev/null)"; owner="${owner:-KleinPerkins}"
-  today="$(date +%Y-%m-%d)"
-  title="$(awk 'NF && /^# /{sub(/^# /,""); print; exit}' "$dst/SKILL.md" 2>/dev/null)"; title="${title:-$ID}"
-  kws="$(printf '%s' "$ID" | tr '-' '\n' | awk 'NF{printf "\"%s\", ", $0}' | sed 's/, $//')"
-  # Idempotent dates (kill per-run churn / preserve provenance):
-  #   created — preserve the value already on the cpp base branch (the first-vendored date); else today.
-  #   updated — derive from the MASTER capability (its updated, else its created), NEVER `date`, so a
-  #             re-vendor of an unchanged master yields a byte-identical meta (no spurious churn PR).
+  local dst="$1" base_meta
   base_meta="$(git -C "$WORK" show "$DEFAULT_BRANCH:$REL/meta.yml" 2>/dev/null || true)"
-  created="$(printf '%s\n' "$base_meta" | awk -F': *' '/^created:/{v=$2; gsub(/"/,"",v); print v; exit}')"
-  [ -n "$created" ] || created="$today"
-  updated="$(awk -F': *' '/^updated:/{v=$2; gsub(/"/,"",v); print v; exit}' "$mm" 2>/dev/null)"
-  [ -n "$updated" ] || updated="$(awk -F': *' '/^created:/{v=$2; gsub(/"/,"",v); print v; exit}' "$mm" 2>/dev/null)"
-  [ -n "$updated" ] || updated="$created"
-  cat > "$dst/meta.yml" <<EOF
-id: $ID
-type: resource
-status: stable
-scope: team
-owner: $owner
-title: "$title"
-kind: $cppkind
-keywords: [$kws]
-source: "vendored by the ecosystem orchestrator (self-sufficient copy)"
-created: "$created"
-updated: "$updated"
-EOF
+  payload_emit_cpp_meta "$dst" "$ID" "$MASTER" "$base_meta"
 }
-
-# Emit an ld-agnostic discoverability descriptor for a `kind: mcp` capability. The MCP server's
-# runtime cannot be vendored into cpp — its source tree carries forbidden-ld tokens (e.g. the
-# `kp-mcp` workspace deps) and its launch command lives per-operator in ~/.cursor / ~/.codex /
-# ~/.claude. We generate a clean README + VENDORED.md (no source tar) so the cpp side has a
-# discoverable record of the capability and generic wiring guidance, with zero ld tokens.
-emit_mcp_descriptor() {
-  local dst="$1"
-  cat > "$dst/README.md" <<EOF
-# $ID — MCP server (discoverability descriptor)
-
-This directory is an **ld-agnostic discoverability descriptor** for the
-\`$ID\` MCP server, vendored by the ecosystem orchestrator. The server's
-runtime lives outside this repository; this entry exists so agents and
-operators can discover its existence, purpose, and per-machine wiring
-shape without taking any dependency on upstream paths.
-
-## What it is
-
-\`$ID\` is a Model Context Protocol (MCP) stdio server that exposes a
-collection of tools to MCP-aware agent clients (Cursor, Codex, Claude).
-
-## Per-machine wiring
-
-Each operator wires the server into their MCP clients by writing the
-non-secret launch command + args into:
-
-- Cursor — \`~/.cursor/mcp.json\` (JSON; \`mcpServers.$ID\`)
-- Codex  — \`~/.codex/config.toml\` (TOML; \`[mcp_servers.$ID]\`)
-- Claude — \`~/.claude.json\` (JSON; \`mcpServers.$ID\`, type: stdio)
-
-Only \`command\` + \`args\` (and optional non-secret \`env\`) are written.
-Tokens and credentials live in the operator's OS keychain and are NEVER
-stored in any repo.
-
-## Do not edit here
-
-This descriptor is regenerated by the ecosystem orchestrator. Local
-edits are overwritten on the next sync.
-EOF
-}
+emit_mcp_descriptor() { payload_emit_mcp_descriptor "$1" "$ID"; }
 
 build_payload() {
   local dst="$WORK/$REL" mk
@@ -221,12 +141,7 @@ build_payload() {
     ( cd "$MASTER" && tar --exclude='./meta.yml' --exclude='./install.sh' \
           --exclude='./.git' --exclude='./__pycache__' --exclude='*.pyc' -cf - . ) | ( cd "$dst" && tar -xf - )
   fi
-  cat > "$dst/VENDORED.md" <<EOF
-# Vendored capability: $ID
-
-This directory is a self-sufficient vendored copy managed by the ecosystem orchestrator.
-Do not edit it here — changes are overwritten on the next sync. It carries no upstream paths.
-EOF
+  payload_emit_vendored_md "$dst" "$ID"
   emit_cpp_meta "$dst"
   printf '%s\n' "$dst"
 }
