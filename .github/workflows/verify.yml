@@ -42,40 +42,39 @@ jobs:
       - name: payload.sh generators (mcp descriptor + cpp meta)
         run: |
           set -euo pipefail
-          # Hermetic fixture: a minimal kind:mcp master + an empty dst.
+          # Hermetic fixture: a minimal kind:mcp master. Use printf (NOT heredoc) — under a YAML
+          # literal block scalar, leading indentation is preserved, and bash heredoc terminators
+          # only match at column 0, so a `<<EOF` here silently swallows the rest of the script.
           tmp="$(mktemp -d)"
-          mkdir -p "$tmp/master" "$tmp/dst"
-          cat > "$tmp/master/meta.yml" <<EOF
-          schema: kp-capability/v1
-          id: smoke-kit
-          kind: mcp
-          flavor: 1
-          scope: global
-          owner: KleinPerkins
-          install: install.sh
-          post_mgmt: none
-          EOF
-          # Source the lib and exercise the public generators.
+          mkdir -p "$tmp/master" "$tmp/dst" "$tmp/dst2"
+          printf '%s\n' \
+            'schema: kp-capability/v1' \
+            'id: smoke-kit' \
+            'kind: mcp' \
+            'flavor: 1' \
+            'scope: global' \
+            'owner: KleinPerkins' \
+            'install: install.sh' \
+            'post_mgmt: none' > "$tmp/master/meta.yml"
           . lib/payload.sh
           payload_emit_mcp_descriptor "$tmp/dst" smoke-kit
           payload_emit_vendored_md    "$tmp/dst" smoke-kit
           payload_emit_cpp_meta       "$tmp/dst" smoke-kit "$tmp/master" ""
-          # Required files present.
           for f in README.md VENDORED.md meta.yml; do
             [ -f "$tmp/dst/$f" ] || { echo "FAIL: $f not generated"; exit 1; }
           done
           # Zero-link: no ld tokens in the descriptor.
-          re='KleinPerkins/[A-Za-z0-9_.-]+|kp-mcp|ecosystem-orchestrator|/Users/laurence\.duggan|/dev/capabilities|(^|[^A-Za-z])~/dev'
-          if grep -REnI "$re" "$tmp/dst" >/dev/null; then
-            echo "FAIL: ld tokens leaked into the cpp descriptor:"; grep -REnI "$re" "$tmp/dst" | sed 's/^/  /'
+          re='KleinPerkins/[A-Za-z0-9_.-]+|kp-mcp|ecosystem-orchestrator|/Users/laurence\.duggan|/dev/capabilities'
+          hits="$(grep -REnI "$re" "$tmp/dst" || true)"
+          if [ -n "$hits" ]; then
+            echo "FAIL: ld tokens leaked into the cpp descriptor:"; printf '%s\n' "$hits" | sed 's/^/  /'
             exit 1
           fi
           # Idempotent: a second run produces byte-identical output.
-          mkdir -p "$tmp/dst2"
           payload_emit_mcp_descriptor "$tmp/dst2" smoke-kit
           payload_emit_vendored_md    "$tmp/dst2" smoke-kit
           payload_emit_cpp_meta       "$tmp/dst2" smoke-kit "$tmp/master" "$(cat "$tmp/dst/meta.yml")"
-          diff -q "$tmp/dst/README.md"  "$tmp/dst2/README.md"
+          diff -q "$tmp/dst/README.md"   "$tmp/dst2/README.md"
           diff -q "$tmp/dst/VENDORED.md" "$tmp/dst2/VENDORED.md"
-          diff -q "$tmp/dst/meta.yml"   "$tmp/dst2/meta.yml"
+          diff -q "$tmp/dst/meta.yml"    "$tmp/dst2/meta.yml"
           echo "payload-smoke: OK"

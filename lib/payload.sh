@@ -109,16 +109,19 @@ payload_emit_cpp_meta() {
   local dst="$1" id="$2" master="$3" base_meta="${4:-}"
   local mm="$master/meta.yml"
   local kind cppkind owner title today kws created updated
-  kind="$(awk -F': *' '/^kind:/{print $2; exit}'  "$mm" 2>/dev/null)";  kind="${kind:-skill}"
+  # awk on a missing file returns rc=2; under `set -e` a command-substitution failure aborts
+  # the caller. Suffix each optional read with `|| true` so the assignment cleanly falls back
+  # to the documented default.
+  kind="$(awk -F': *' '/^kind:/{print $2; exit}'  "$mm" 2>/dev/null || true)";  kind="${kind:-skill}"
   cppkind="$(payload_cpp_kind_for_kind "$kind")"
-  owner="$(awk -F': *' '/^owner:/{print $2; exit}' "$mm" 2>/dev/null)"; owner="${owner:-KleinPerkins}"
+  owner="$(awk -F': *' '/^owner:/{print $2; exit}' "$mm" 2>/dev/null || true)"; owner="${owner:-KleinPerkins}"
   today="$(date +%Y-%m-%d)"
-  title="$(awk 'NF && /^# /{sub(/^# /,""); print; exit}' "$dst/SKILL.md" 2>/dev/null)"; title="${title:-$id}"
+  title="$(awk 'NF && /^# /{sub(/^# /,""); print; exit}' "$dst/SKILL.md" 2>/dev/null || true)"; title="${title:-$id}"
   kws="$(printf '%s' "$id" | tr '-' '\n' | awk 'NF{printf "\"%s\", ", $0}' | sed 's/, $//')"
-  created="$(printf '%s\n' "$base_meta" | awk -F': *' '/^created:/{v=$2; gsub(/"/,"",v); print v; exit}')"
+  created="$(printf '%s\n' "$base_meta" | awk -F': *' '/^created:/{v=$2; gsub(/"/,"",v); print v; exit}' || true)"
   [ -n "$created" ] || created="$today"
-  updated="$(awk -F': *' '/^updated:/{v=$2; gsub(/"/,"",v); print v; exit}' "$mm" 2>/dev/null)"
-  [ -n "$updated" ] || updated="$(awk -F': *' '/^created:/{v=$2; gsub(/"/,"",v); print v; exit}' "$mm" 2>/dev/null)"
+  updated="$(awk -F': *' '/^updated:/{v=$2; gsub(/"/,"",v); print v; exit}' "$mm" 2>/dev/null || true)"
+  [ -n "$updated" ] || updated="$(awk -F': *' '/^created:/{v=$2; gsub(/"/,"",v); print v; exit}' "$mm" 2>/dev/null || true)"
   [ -n "$updated" ] || updated="$created"
   cat > "$dst/meta.yml" <<EOF
 id: $id
