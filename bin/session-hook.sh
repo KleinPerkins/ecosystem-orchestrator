@@ -5,8 +5,20 @@
 # FAIL-OPEN by contract: it must NEVER block a session, so it always exits 0 and only logs.
 #   modes:  (none) = quick read-only doctor;  --periodic = doctor + self-heal + DRY-RUN sync.
 set -uo pipefail
-SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-. "$SELF_DIR/../lib/common.sh"
+# Resolve through symlinks FIRST: Cursor installs this hook as
+# ~/.cursor/hooks/orchestrator-session.sh -> <repo>/bin/session-hook.sh, so $0/BASH_SOURCE is the
+# SYMLINK. Without resolving it, SELF_DIR would be ~/.cursor/hooks and the common.sh source below would
+# miss → ORCH_ROOT/ORCH_CONFIG unbound under `set -u` → the hook aborts non-zero, BREAKING fail-open.
+SRC="${BASH_SOURCE[0]:-$0}"
+while [ -L "$SRC" ]; do
+  _d="$(cd -P "$(dirname "$SRC")" >/dev/null 2>&1 && pwd)"
+  SRC="$(readlink "$SRC")"; case "$SRC" in /*) ;; *) SRC="$_d/$SRC" ;; esac
+done
+SELF_DIR="$(cd -P "$(dirname "$SRC")" >/dev/null 2>&1 && pwd)"
+. "$SELF_DIR/../lib/common.sh" 2>/dev/null || true
+# Defensive defaults so the fail-open hook never trips `set -u` even if common.sh could not be sourced.
+: "${ORCH_ROOT:=$(cd "$SELF_DIR/.." >/dev/null 2>&1 && pwd)}"
+: "${ORCH_CONFIG:=$ORCH_ROOT/config/relationship.yml}"
 LOG_DIR="$(orch_expand "$(orch_cfg_get work_clone_dir)")"; LOG_DIR="$(dirname "${LOG_DIR:-$HOME/.orchestrator-work/x}")"
 mkdir -p "$LOG_DIR" 2>/dev/null || true
 LOG="$LOG_DIR/orchestrator.log"

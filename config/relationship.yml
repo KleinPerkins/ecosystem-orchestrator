@@ -15,8 +15,12 @@ cpp_clone_url: git@github.com:Affirm/card-platform-product.git
 cpp_default_branch: main
 cpp_quiver_path: quiver
 cpp_pr_branch_prefix: orchestrator/vendor
-# Governance: LD-authored PR, squash auto-merge; land via admin-squash per cpp control-plane flow.
-cpp_merge_mode: admin-squash
+# Governance (Decision B): LD-authored, quiver-only PR landed via GitHub NATIVE auto-merge
+# (`gh pr merge --auto --squash`). cpp's OWN required server checks + the @affirm-cpp-bot CODEOWNER
+# auto-approval gate the merge — NO human reviewer and NO admin bypass on the routine path. `--admin`
+# (bypass) is BREAK-GLASS ONLY (vendor.sh --break-glass-admin / ORCH_VENDOR_BREAKGLASS_ADMIN=1).
+# Documentation-of-record; the ENFORCED behavior lives in lib/vendor.sh.
+cpp_merge_mode: auto-squash
 # NEVER write these cpp paths (control plane):
 cpp_forbidden_paths: _ops/ .github/
 
