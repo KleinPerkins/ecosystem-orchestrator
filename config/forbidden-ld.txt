@@ -1,0 +1,9 @@
+# Tokens that reveal LD — forbidden in a cpp payload (ERE fragments, one per line).
+# Used by `orchestrator zero-link --mode cpp <path>`.
+KleinPerkins/(dev|skills)
+kp-mcp
+/Users/laurence\.duggan
+/dev/capabilities
+~/dev
+49759187\+KleinPerkins
+ld-stuff

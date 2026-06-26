@@ -1,0 +1,25 @@
+# config/relationship.yml — THE ld<->cpp relationship (INV-zero-link: defined ONLY here).
+# Flat keys (dependency-free parsing). Read by bin/orchestrator.sh.
+schema: orchestrator-relationship/v1
+
+# --- Upstream (ld) global masters: sources of vendorable capabilities ---
+source_skills_local: ~/dev/capabilities/skills
+source_skills_global: ~/dev/capabilities/skills/global
+source_skills_repo: git@github.com:KleinPerkins/skills.git
+source_mcp_local: ~/dev/capabilities/mcp
+source_mcp_repo: git@github.com:KleinPerkins/kp-mcp.git
+
+# --- Downstream consumer (cpp), the governed target ---
+cpp_repo: Affirm/card-platform-product
+cpp_clone_url: git@github.com:Affirm/card-platform-product.git
+cpp_default_branch: main
+cpp_quiver_path: quiver
+cpp_pr_branch_prefix: orchestrator/vendor
+# Governance: LD-authored PR, squash auto-merge; land via admin-squash per cpp control-plane flow.
+cpp_merge_mode: admin-squash
+# NEVER write these cpp paths (control plane):
+cpp_forbidden_paths: _ops/ .github/
+
+# --- Work area (out-of-tree clone; gitignored) ---
+work_clone_dir: ~/.orchestrator-work/cpp-clone
+backup_dir: ~/.reorg-archives

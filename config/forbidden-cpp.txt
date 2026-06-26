@@ -1,0 +1,6 @@
+# Tokens that reveal CPP — forbidden in an ld/global payload (ERE fragments, one per line).
+# Used by `orchestrator zero-link --mode global <path>`.
+card-platform-product
+cpp-stuff
+affirm/(src|vendor)
+[^A-Za-z]cpp[^A-Za-z]
