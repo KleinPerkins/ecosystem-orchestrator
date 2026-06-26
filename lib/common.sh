@@ -7,7 +7,7 @@ ORCH_ROOT="$(cd "$ORCH_LIB_DIR/.." && pwd)"                          # repo root
 ORCH_CONFIG="$ORCH_ROOT/config/relationship.yml"
 ORCH_FORBIDDEN_DIR="$ORCH_ROOT/config"
 
-orch_log()  { printf '[orch] %s\n' "$*"; }
+orch_log()  { printf '[orch] %s\n' "$*" >&2; }
 orch_warn() { printf '[orch] WARN %s\n' "$*" >&2; }
 orch_err()  { printf '[orch] ERROR %s\n' "$*" >&2; }
 
@@ -24,6 +24,10 @@ orch_cfg_get() {
         if (key==k) { val=line; sub(/^[A-Za-z0-9_]+:[[:space:]]*/, "", val); gsub(/^"|"$/, "", val); print val; exit }
       } }' "$ORCH_CONFIG"
 }
+
+# orch_canonical_noreply — the canonical KleinPerkins GitHub noreply (LD authors cpp PRs as this).
+# Self-contained (the orchestrator is private + the relationship owner, so ld tokens are allowed here).
+orch_canonical_noreply() { printf '%s\n' "49759187+KleinPerkins@users.noreply.github.com"; }
 
 orch_sha256() {
   if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}';
