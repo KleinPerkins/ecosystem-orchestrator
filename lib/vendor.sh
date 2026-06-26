@@ -168,8 +168,13 @@ else
   MSG="feat(quiver): vendor $ID (orchestrator sync)"
 fi
 
-# control-plane guard: only $REL may be staged; never _ops/ or .github/.
+# idempotent no-op: if nothing staged, the item already matches the base branch.
 CHANGED="$(git -C "$WORK" diff --cached --name-only)"
+if [ -z "$CHANGED" ]; then
+  orch_log "no changes — $ID already in sync on $DEFAULT_BRANCH (no-op)"; exit 0
+fi
+
+# control-plane guard: only $REL may be staged; never _ops/ or .github/.
 for p in $FORBIDDEN_PATHS; do
   if printf '%s\n' "$CHANGED" | grep -qE "^$p"; then orch_err "ABORT: staged a control-plane path ($p)"; exit 1; fi
 done
