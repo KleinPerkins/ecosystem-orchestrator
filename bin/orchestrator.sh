@@ -3,7 +3,8 @@
 # ld<->cpp relationship. Subcommands:
 #   vendor <id>        vendor a global capability into cpp via a governed PR (WS-7)
 #   delete <id>        propagate a master delete via a governed cpp deletion PR (WS-7)
-#   dedup  <id>        replace the local cpp vendored copy with a symlink to the master (WS-8)
+#   consistency [id..] verify master<->cpp vendored-payload content is in sync (Decision A control)
+#   dedup  <id>        DEPRECATED (Decision A): symlink-dedup abandoned; --reverse un-arms a legacy link
 #   sync               refresh the orchestrator's own install state (WS-9)
 #   self-heal          bounded verifier-driven retry loop (WS-9)
 #   install            install the orchestrator's triggers + state (ORCH-C, WS-9)
@@ -44,6 +45,7 @@ cmd_doctor() {
 # --- WS-7 (vendor/delete) and WS-8 (dedup) and WS-9 (sync/self-heal/install) fill these in. ---
 cmd_vendor()   { bash "$ORCH_BIN_DIR/../lib/vendor.sh" "$@"; }
 cmd_delete()   { bash "$ORCH_BIN_DIR/../lib/vendor.sh" --delete "$@"; }
+cmd_consistency() { bash "$ORCH_BIN_DIR/../lib/consistency.sh" "$@"; }
 cmd_dedup()    { bash "$ORCH_BIN_DIR/../lib/dedup.sh" "$@"; }
 cmd_sync()     { bash "$ORCH_BIN_DIR/../lib/selfmanage.sh" sync "$@"; }
 cmd_selfheal() { bash "$ORCH_BIN_DIR/../lib/selfmanage.sh" self-heal "$@"; }
@@ -54,6 +56,7 @@ main() {
   case "$sub" in
     vendor)     cmd_vendor "$@" ;;
     delete)     cmd_delete "$@" ;;
+    consistency) cmd_consistency "$@" ;;
     dedup)      cmd_dedup "$@" ;;
     sync)       cmd_sync "$@" ;;
     self-heal)  cmd_selfheal "$@" ;;

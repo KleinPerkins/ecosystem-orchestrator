@@ -17,7 +17,10 @@ MODE="${1:-}"
     # launchd: full (network OK) — doctor + heal + DRY-RUN sync. Never auto-merges to cpp.
     bash "$ORCH_ROOT/bin/orchestrator.sh" doctor 2>&1 | sed 's/^/  /' || true
     bash "$ORCH_ROOT/lib/selfmanage.sh" self-heal 2>&1 | sed 's/^/  /' || true
-    bash "$ORCH_ROOT/lib/selfmanage.sh" sync      2>&1 | sed 's/^/  /' || true
+    # ORCH_SKIP_CPP_EXEC=1: an UNATTENDED periodic run must never execute cpp's Makefile/integrity
+    # engine fetched from origin/main (RCE surface). Dry-run sync still detects+stages drift; landing
+    # a PR (which needs a GREEN gate) stays operator-initiated via an explicit `orchestrator sync --execute`.
+    ORCH_SKIP_CPP_EXEC=1 bash "$ORCH_ROOT/lib/selfmanage.sh" sync 2>&1 | sed 's/^/  /' || true
   else
     # sessionStart: keep it INSTANT + network-free (no gh calls) so it never slows a session.
     [ -f "$ORCH_CONFIG" ] && echo "  config present; orchestrator ready" || echo "  WARN config missing"

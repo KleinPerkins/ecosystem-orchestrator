@@ -1,6 +1,8 @@
 # Tokens that reveal CPP — forbidden in an ld/global payload (ERE fragments, one per line).
-# Used by `orchestrator zero-link --mode global <path>`.
+# Used by `orchestrator zero-link --mode global <path>` (matched case-insensitively, no symlink follow).
 card-platform-product
 cpp-stuff
 affirm/(src|vendor)
-[^A-Za-z]cpp[^A-Za-z]
+# bare "cpp" as a whole word, including at start/end of a line (the old [^A-Za-z]cpp[^A-Za-z] missed
+# a leading/trailing occurrence). Anchored both sides so it can't be embedded in a longer identifier.
+(^|[^A-Za-z])cpp([^A-Za-z]|$)

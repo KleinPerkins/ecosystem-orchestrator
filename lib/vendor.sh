@@ -55,6 +55,21 @@ cpp_category_for_kind() {
   esac
 }
 
+# Map a kp kind onto cpp's CLOSED quiver meta `kind` enum (the singular of the category). Passing an
+# unmapped kp kind (doc/asset/tool/…) straight through trips cpp's schema validation — so without this
+# only `skill` would ever vendor green. Keep this in lockstep with cpp_category_for_kind above.
+cpp_kind_for_kind() {
+  case "$1" in
+    skill)              printf 'skill\n' ;;
+    workflow)           printf 'workflow\n' ;;
+    mcp)                printf 'mcp\n' ;;
+    sub-agent|subagent) printf 'sub-agent\n' ;;
+    rule|doc)           printf 'rule\n' ;;
+    asset|data|tool|tooling) printf 'tooling\n' ;;
+    *)                  printf 'skill\n' ;;
+  esac
+}
+
 prepare_clone() {
   if [ -n "$CPP_DIR" ]; then
     [ -d "$CPP_DIR/.git" ] || { orch_err "--cpp-dir is not a git repo: $CPP_DIR"; exit 2; }
@@ -68,6 +83,10 @@ prepare_clone() {
     git -C "$WORK" checkout -q "$DEFAULT_BRANCH" 2>/dev/null || git -C "$WORK" checkout -qB "$DEFAULT_BRANCH" "origin/$DEFAULT_BRANCH"
     git -C "$WORK" reset -q --hard "origin/$DEFAULT_BRANCH"
     git -C "$WORK" clean -qfd "$QUIVER" 2>/dev/null || true
+    # Prune our own disposable vendor branches (now that we're back on $DEFAULT_BRANCH) so the work
+    # clone can't accumulate one stale orchestrator/vendor/<id>-<ts> branch per run forever.
+    git -C "$WORK" for-each-ref --format='%(refname:short)' "refs/heads/$PREFIX" 2>/dev/null \
+      | while IFS= read -r _b; do [ -n "$_b" ] && git -C "$WORK" branch -qD "$_b" 2>/dev/null || true; done
   else
     orch_log "cloning cpp (partial, blob:none) -> $WORK"
     mkdir -p "$(dirname "$WORK")"
@@ -92,12 +111,23 @@ set_cpp_identity() {
 
 # Translate the kp-capability/v1 master meta into cpp's CLOSED quiver meta schema (meta.schema.json).
 emit_cpp_meta() {
-  local dst="$1" mm="$MASTER/meta.yml" kind owner title today kws
+  local dst="$1" mm="$MASTER/meta.yml" kind cppkind owner title today kws created updated base_meta
   kind="$(awk -F': *' '/^kind:/{print $2; exit}'  "$mm" 2>/dev/null)";  kind="${kind:-skill}"
+  cppkind="$(cpp_kind_for_kind "$kind")"
   owner="$(awk -F': *' '/^owner:/{print $2; exit}' "$mm" 2>/dev/null)"; owner="${owner:-KleinPerkins}"
   today="$(date +%Y-%m-%d)"
   title="$(awk 'NF && /^# /{sub(/^# /,""); print; exit}' "$dst/SKILL.md" 2>/dev/null)"; title="${title:-$ID}"
   kws="$(printf '%s' "$ID" | tr '-' '\n' | awk 'NF{printf "\"%s\", ", $0}' | sed 's/, $//')"
+  # Idempotent dates (kill per-run churn / preserve provenance):
+  #   created — preserve the value already on the cpp base branch (the first-vendored date); else today.
+  #   updated — derive from the MASTER capability (its updated, else its created), NEVER `date`, so a
+  #             re-vendor of an unchanged master yields a byte-identical meta (no spurious churn PR).
+  base_meta="$(git -C "$WORK" show "$DEFAULT_BRANCH:$REL/meta.yml" 2>/dev/null || true)"
+  created="$(printf '%s\n' "$base_meta" | awk -F': *' '/^created:/{v=$2; gsub(/"/,"",v); print v; exit}')"
+  [ -n "$created" ] || created="$today"
+  updated="$(awk -F': *' '/^updated:/{v=$2; gsub(/"/,"",v); print v; exit}' "$mm" 2>/dev/null)"
+  [ -n "$updated" ] || updated="$(awk -F': *' '/^created:/{v=$2; gsub(/"/,"",v); print v; exit}' "$mm" 2>/dev/null)"
+  [ -n "$updated" ] || updated="$created"
   cat > "$dst/meta.yml" <<EOF
 id: $ID
 type: resource
@@ -105,11 +135,11 @@ status: stable
 scope: team
 owner: $owner
 title: "$title"
-kind: $kind
+kind: $cppkind
 keywords: [$kws]
 source: "vendored by the ecosystem orchestrator (self-sufficient copy)"
-created: "$today"
-updated: "$today"
+created: "$created"
+updated: "$updated"
 EOF
 }
 
@@ -130,6 +160,9 @@ EOF
 
 cpp_integrity() {
   local rc=0 ran=0
+  # RCE guard: when called from an UNATTENDED periodic trigger, never execute cpp's Makefile/integrity
+  # engine freshly fetched from origin/main. Skipping yields gate=INDETERMINATE (which never auto-lands).
+  if [ "${ORCH_SKIP_CPP_EXEC:-0}" = 1 ]; then orch_warn "cpp integrity SKIPPED (ORCH_SKIP_CPP_EXEC=1); gate = INDETERMINATE"; return 2; fi
   if [ -f "$WORK/Makefile" ] && grep -qE '^(verify|integrity|check):' "$WORK/Makefile" 2>/dev/null; then
     ran=1; ( cd "$WORK" && make verify ) >/tmp/orch-integ.$$ 2>&1 || rc=$?
   elif [ -x "$WORK/_ops/ci/cpp-integrity-engine" ]; then

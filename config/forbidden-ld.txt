@@ -1,6 +1,10 @@
 # Tokens that reveal LD — forbidden in a cpp payload (ERE fragments, one per line).
-# Used by `orchestrator zero-link --mode cpp <path>`.
-KleinPerkins/(dev|skills)
+# Used by `orchestrator zero-link --mode cpp <path>` (matched case-insensitively, no symlink follow).
+# NOTE: match an ld REPO PATH (KleinPerkins/<repo>), never bare "KleinPerkins" — the vendored cpp
+#       meta legitimately carries `owner: KleinPerkins`. The repo token is "ecosystem-orchestrator"
+#       (hyphen); the prose "ecosystem orchestrator" (space) in VENDORED.md must NOT trip the gate.
+KleinPerkins/[A-Za-z0-9_.-]+
+ecosystem-orchestrator
 kp-mcp
 /Users/laurence\.duggan
 /dev/capabilities

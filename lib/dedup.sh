@@ -1,26 +1,24 @@
 #!/usr/bin/env bash
-# lib/dedup.sh — single-master-copy dedup (reorg-v2 WS-8 / D-1). On LD's machine, replace a cpp
-# vendored copy with a SYMLINK to the global master so there is exactly one real copy to maintain.
+# lib/dedup.sh — DEPRECATED single-master-copy dedup (reorg-v2 WS-8 / D-1; ABANDONED by Decision A).
 #
-#   dedup.sh [--apply|--reverse|--reassert] [--cpp-dir DIR] <id>
-#     (default)    DRY-RUN: report the master, the vendored target, and what --apply would do.
-#     --apply      perform the dedup. Idempotent. For a git-TRACKED cpp target this is the SAFE LIVE
-#                  mode (gated behind ORCH_DEDUP_ALLOW_TRACKED=1, default refusal preserved).
-#     --reverse    the documented INVERSE of a tracked dedup (clears skip-worktree, restores the real
-#                  vendored files from cpp's index, drops the local exclude). Returns cpp to pristine.
-#     --reassert   re-assert skip-worktree (+ exclude) on an already-deduped target; no-op otherwise.
-#                  Called by the orchestrator sync path so dedup survives a re-sync and cpp never dirties.
-#     --cpp-dir    the cpp tree to operate on (default: config ld_cpp_worktree).
+# Decision A (2026-06-26): the live symlink-into-master dedup is ABANDONED. cpp keeps the REAL vendored
+# copy (byte-identical to what teammates clone); master<->payload integrity is now enforced by the
+# sync-time CONSISTENCY VERIFY (lib/consistency.sh), NOT by collapsing the two copies into one symlink.
+# Why abandoned: (1) UNSAFE — routine cpp git ops (branch switch / re-vendor) write THROUGH the symlink
+# into the global SOT; (2) SEMANTICALLY WRONG — the master is a self-managed skill, the vendored payload
+# is an ld-agnostic copy, so master != payload and the local view diverged from the shipped bytes.
+# INV-master-copy is intentionally RELAXED: two real copies are accepted, with the consistency verify as
+# the compensating control.
 #
-# SAFE LIVE MODE — D-1 resolution (LD-only, LOCAL-ONLY; never committed/pushed to cpp). In order:
-#   1. back up the current cpp vendored copy OUT-OF-TREE (timestamped archive);
-#   2. `git update-index --skip-worktree` every tracked file under the target FIRST, so the swap
-#      cannot dirty cpp;
-#   3. add the target to `.git/info/exclude` (local-only) so the replacement symlink is not reported
-#      as an untracked path;
-#   4. replace the real files with a symlink -> the global MASTER.
-# This is sanctioned on the cpp worktree precisely because it is purely local: the tracked/pushed cpp
-# content is unchanged, INV-zero-link holds for the repo, and `git status` stays clean.
+#   dedup.sh --reverse [--cpp-dir DIR] <id>   ONE-TIME migration/safety util — undo a previously-applied
+#                                             live dedup: clear skip-worktree, restore the real vendored
+#                                             files from cpp's index, drop the local exclude. Returns cpp
+#                                             to its pristine committed state. NOTHING auto-calls this.
+#   dedup.sh [--apply|--reassert] ...         HARD-DISABLED (Decision A) — refuses. Use the consistency
+#                                             verify instead: `orchestrator consistency` / `make eco-consistency`.
+#   (default)                                 DRY-RUN: print current state + this deprecation notice.
+#
+# --reverse is retained ONLY so a machine still carrying a pre-Decision-A symlink can be un-armed.
 set -uo pipefail
 DD_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 . "$DD_LIB_DIR/common.sh"
@@ -38,7 +36,7 @@ while [ $# -gt 0 ]; do
   esac; shift
 done
 ID="${args[0]:-}"
-[ -n "$ID" ] || { orch_err "usage: dedup.sh [--apply|--reverse|--reassert] [--cpp-dir DIR] <id>"; exit 2; }
+[ -n "$ID" ] || { orch_err "usage: dedup.sh --reverse [--cpp-dir DIR] <id>  (--apply/--reassert disabled by Decision A; use the consistency verify)"; exit 2; }
 
 QUIVER="$(orch_cfg_get cpp_quiver_path)"; QUIVER="${QUIVER:-quiver}"
 SRC_GLOBAL="$(orch_expand "$(orch_cfg_get source_skills_global)")"
@@ -107,76 +105,28 @@ if [ "$MODE" = "reverse" ]; then
 fi
 
 # =================================================================================================
-# REASSERT — re-apply skip-worktree (+exclude) on an already-deduped target; no-op otherwise.
-# Used by the sync path so a deduped copy survives a re-sync without dirtying cpp.
+# REASSERT / APPLY — HARD-DISABLED by Decision A (abandon symlink-dedup).
 # =================================================================================================
-if [ "$MODE" = "reassert" ]; then
-  if [ -L "$TARGET" ] && [ "$tracked" = 1 ]; then
-    sw_set; exclude_add
-    status_clean_for_rel && orch_log "reasserted: skip-worktree+exclude set; cpp clean for $REL" \
-                         || { orch_warn "reassert: $REL not clean after re-set"; exit 1; }
-  else
-    orch_log "reassert: $REL not deduped (no symlink) — no-op"
-  fi
-  exit 0
-fi
-
-# =================================================================================================
-# DRY-RUN
-# =================================================================================================
-if [ "$MODE" = "dryrun" ]; then
-  if [ -L "$TARGET" ]; then orch_log "DRY-RUN: already a symlink -> $(readlink "$TARGET")"; exit 0; fi
-  orch_log "DRY-RUN: --apply would back up out-of-tree, skip-worktree the tracked files, add a local"
-  orch_log "         exclude, then symlink $REL -> the master."
-  if [ "$tracked" = 1 ] && [ "${ORCH_DEDUP_ALLOW_TRACKED:-0}" != 1 ]; then
-    orch_warn "target is git-TRACKED — safe live swap requires ORCH_DEDUP_ALLOW_TRACKED=1 (default refusal)."
-  fi
-  exit 0
-fi
-
-# =================================================================================================
-# APPLY
-# =================================================================================================
-# Idempotency: a correct symlink already in place -> re-assert (harmless) and report no-op.
-if [ -L "$TARGET" ] && [ "$(readlink "$TARGET")" = "$MASTER" ]; then
-  if [ "$tracked" = 1 ]; then sw_set; exclude_add; fi
-  orch_log "already deduped (idempotent): $TARGET -> $MASTER"
-  exit 0
-fi
-
-# Untracked target (sandbox / not in cpp index): simple backup + swap (original behavior).
-if [ "$tracked" != 1 ]; then
-  bk="$(orch_backup_outoftree "$TARGET" "dedup-$ID")"; orch_log "backup (out-of-tree): $bk"
-  rm -rf "$TARGET"; ln -s "$MASTER" "$TARGET"
-  if [ -L "$TARGET" ] && [ "$(readlink "$TARGET")" = "$MASTER" ]; then orch_log "deduped (untracked): $TARGET -> $MASTER"; exit 0
-  else orch_err "verify failed; restoring"; rm -f "$TARGET"; ( cd "$(dirname "$TARGET")" && tar -xzf "$bk" ); exit 1; fi
-fi
-
-# Tracked target: SAFE LIVE MODE, gated.
-if [ "${ORCH_DEDUP_ALLOW_TRACKED:-0}" != 1 ]; then
-  orch_err "REFUSING: target is git-tracked. The safe live swap is LD-only + opt-in. Override: ORCH_DEDUP_ALLOW_TRACKED=1"
+if [ "$MODE" = "reassert" ] || [ "$MODE" = "apply" ]; then
+  orch_err "dedup --$MODE is HARD-DISABLED (Decision A: symlink-dedup abandoned; cpp keeps the real"
+  orch_err "vendored copy). master<->payload integrity is enforced by the consistency verify instead:"
+  orch_err "    orchestrator consistency        # report drift"
+  orch_err "    make eco-consistency            # same, from ~/dev"
+  orch_err "To un-arm a legacy live symlink from before Decision A, use: dedup.sh --reverse <id>."
   exit 3
 fi
 
-bk="$(orch_backup_outoftree "$TARGET" "dedup-$ID")"; orch_log "backup (out-of-tree): $bk"
-orch_log "skip-worktree: $(git -C "$CPP_DIR" ls-files -- "$REL" | wc -l | tr -d ' ') tracked file(s) under $REL"
-sw_set                       # 2) skip-worktree FIRST so the swap can't dirty cpp
-exclude_add                  # 3) local-only exclude so the symlink isn't an untracked entry
-rm -rf "$TARGET"             # 4) swap the real files for a symlink -> master
-ln -s "$MASTER" "$TARGET"
-
-# verify: symlink resolves to master, master content readable, skip-worktree set, cpp clean for REL.
-ok=1
-[ -L "$TARGET" ] && [ "$(readlink "$TARGET")" = "$MASTER" ] || { orch_err "verify: not a symlink->master"; ok=0; }
-[ -e "$TARGET/SKILL.md" ] || [ -d "$TARGET" ] || { orch_err "verify: master content unreadable via link"; ok=0; }
-sw_is_set || { orch_err "verify: skip-worktree not fully set"; ok=0; }
-status_clean_for_rel || { orch_err "verify: cpp not clean for $REL"; ok=0; }
-
-if [ "$ok" = 1 ]; then
-  orch_log "deduped (safe live): $TARGET -> $MASTER  [skip-worktree set; exclude added; cpp clean]"
-  orch_log "reverse with: dedup.sh --reverse --cpp-dir \"$CPP_DIR\" $ID"
+# =================================================================================================
+# DRY-RUN — report state + deprecation notice.
+# =================================================================================================
+if [ "$MODE" = "dryrun" ]; then
+  orch_warn "DEPRECATED: symlink-dedup is ABANDONED (Decision A). cpp keeps the real vendored copy."
+  if [ -L "$TARGET" ]; then
+    orch_warn "LEGACY live symlink present: $TARGET -> $(readlink "$TARGET")"
+    orch_warn "Un-arm it with: dedup.sh --reverse --cpp-dir \"$CPP_DIR\" $ID"
+  else
+    orch_log "$REL is a real directory (correct end-state under Decision A) — nothing to do."
+  fi
+  orch_log "Integrity is now verified by: orchestrator consistency / make eco-consistency."
   exit 0
 fi
-orch_err "verify failed — rolling back to pristine"
-sw_clear; rm -f "$TARGET"; git -C "$CPP_DIR" checkout -- "$REL" 2>/dev/null || ( cd "$(dirname "$TARGET")" && tar -xzf "$bk" ); exclude_rm
-exit 1

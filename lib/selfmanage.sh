@@ -19,17 +19,27 @@ managed_ids() { grep -vE '^[[:space:]]*(#|$)' "$MANAGED" 2>/dev/null || true; }
 
 # ---- install (ORCH-C triggers) -------------------------------------------------------------------
 cmd_install() {
-  mkdir -p "$STATE_DIR" "$CURSOR_HOOKS_DIR"
+  mkdir -p "$STATE_DIR" "$CURSOR_HOOKS_DIR" "$(dirname "$PLIST_PATH")"
 
   # 1) Cursor sessionStart user hook: symlink the body + safely merge hooks.json.
   ln -sfn "$ORCH_ROOT/bin/session-hook.sh" "$CURSOR_HOOKS_DIR/orchestrator-session.sh"
   CURSOR_HOOKS_JSON="$CURSOR_HOOKS_JSON" python3 - <<'PY' || orch_warn "hooks.json merge skipped"
 import json, os, sys, shutil, time
 p = os.environ["CURSOR_HOOKS_JSON"]
-data = {"version": 1, "hooks": {}}
 if os.path.exists(p):
-    try: data = json.load(open(p))
-    except Exception: shutil.copy(p, p + f".bak-{int(time.time())}")
+    try:
+        data = json.load(open(p))
+    except Exception:
+        # Corrupt / non-JSON: back it up and DO NOT overwrite. Clobbering here would wipe other tools'
+        # hooks (the old code fell through to writing an empty default). Leave the original for the
+        # operator to fix, then re-run install — idempotent once it parses.
+        bak = p + f".bak-{int(time.time())}"; shutil.copy(p, bak)
+        print(f"hooks.json: UNPARSEABLE — backed up to {bak} and left UNTOUCHED (fix it, then re-run)")
+        sys.exit(0)
+else:
+    data = {}
+if not isinstance(data, dict):
+    print("hooks.json: top-level is not a JSON object — left untouched"); sys.exit(0)
 data.setdefault("version", 1); data.setdefault("hooks", {})
 arr = data["hooks"].setdefault("sessionStart", [])
 cmd = "./hooks/orchestrator-session.sh"
@@ -64,7 +74,9 @@ PY
 </plist>
 EOF
   orch_log "launchd plist written: $PLIST_PATH"
-  if command -v launchctl >/dev/null 2>&1; then
+  if [ "${ORCH_NO_LAUNCHCTL:-0}" = 1 ]; then
+    orch_log "ORCH_NO_LAUNCHCTL=1 — plist written but NOT loaded (hermetic/test mode)"
+  elif command -v launchctl >/dev/null 2>&1; then
     launchctl bootout "gui/$(id -u)/$PLIST_LABEL" >/dev/null 2>&1 || true
     if launchctl bootstrap "gui/$(id -u)" "$PLIST_PATH" >/dev/null 2>&1; then orch_log "launchd agent loaded (bootstrap)"
     else launchctl load -w "$PLIST_PATH" >/dev/null 2>&1 && orch_log "launchd agent loaded (load -w)" || orch_warn "launchd load skipped (load manually: launchctl load -w $PLIST_PATH)"; fi
@@ -81,15 +93,15 @@ cmd_sync() {
   local execute=0; [ "${1:-}" = "--execute" ] && execute=1
   local ids; ids="$(managed_ids)"
   [ -n "$ids" ] || { orch_log "sync: no managed items"; return 0; }
-  local rc=0 cpp; cpp="$(orch_expand "$(orch_cfg_get ld_cpp_worktree)")"
+  local rc=0
   while IFS= read -r id; do
     [ -n "$id" ] || continue
     orch_log "sync: $id ($([ "$execute" = 1 ] && echo execute || echo dry-run))"
     if [ "$execute" = 1 ]; then bash "$ORCH_ROOT/lib/vendor.sh" --execute "$id" || rc=1
     else bash "$ORCH_ROOT/lib/vendor.sh" "$id" || rc=1; fi
-    # If this item is deduped in the local cpp worktree, re-assert skip-worktree so a re-sync that
-    # rewrites the copy can never leave cpp dirty (no-op when not deduped). Local-only; best-effort.
-    [ -d "$cpp" ] && bash "$ORCH_ROOT/lib/dedup.sh" --reassert --cpp-dir "$cpp" "$id" >/dev/null 2>&1 || true
+    # Decision A: symlink-dedup is abandoned — NO post-sync dedup --reassert (that wrote the live cpp
+    # index from a background job = one-writer violation). cpp keeps the real vendored copy; drift is
+    # caught by the consistency verify (lib/consistency.sh), not hidden behind skip-worktree.
   done <<< "$ids"
   return "$rc"
 }
@@ -102,7 +114,11 @@ verifiers_ok() {
   if [ -e "$WORK" ] && ! git -C "$WORK" rev-parse --is-inside-work-tree >/dev/null 2>&1; then ok=0; fi
   return $([ "$ok" = 1 ] && echo 0 || echo 1)
 }
-heal() { orch_log "heal: resetting work clone"; rm -rf "$WORK" 2>/dev/null || true; }
+heal() {
+  orch_log "heal: resetting work clone"
+  if orch_guard_rmrf "$WORK"; then rm -rf "$WORK" 2>/dev/null || true
+  else orch_err "heal: refusing rm -rf on unsafe work-clone path ('$WORK') — check work_clone_dir in relationship.yml"; fi
+}
 
 cmd_selfheal() {
   local N="${ECO_HEAL_RETRIES:-3}" a=1
