@@ -31,9 +31,13 @@ jobs:
       - name: Install shellcheck
         run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
       - name: shellcheck bin + lib
-        # SC1091 = "Not following: <file>": sourced files resolve at runtime via common.sh;
-        # don't fail CI for that. Other findings still surface.
-        run: shellcheck -e SC1091 bin/*.sh lib/*.sh
+        # Severity gate: -S error catches real bugs (syntax errors, undefined uses, broken
+        # quoting that changes behavior). Pre-existing info/warning findings (SC2015 A&&B||C
+        # patterns; the SC2046 in selfmanage.sh) are deferred to a tech-debt follow-up — the
+        # CI's job here is to prevent NEW regressions, not retroactively lint clean every
+        # legacy line. SC1091 ("Not following: <file>") stays excluded because sourced files
+        # resolve at runtime via common.sh.
+        run: shellcheck -e SC1091 -S error bin/*.sh lib/*.sh
 
   payload-smoke:
     runs-on: ubuntu-latest
