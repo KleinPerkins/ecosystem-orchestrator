@@ -16,3 +16,21 @@
 
 prompt-architect
 google-kit
+
+# Anthropic skills imported as global flavor-2 snapshots (anthropics/skills@35414756).
+# Snapshots have landed under source_skills_global; actual enroll+vendor-to-cpp is a later
+# governed orchestrator PR (INV-zero-link). Marked excluded so the enrollment-drift check
+# treats them as expected omissions until that PR lands.
+# excluded: algorithmic-art -- deferred orchestrator vendoring (snapshot landed)
+# excluded: canvas-design -- deferred orchestrator vendoring (snapshot landed)
+# excluded: claude-api -- deferred orchestrator vendoring (snapshot landed)
+# excluded: doc-coauthoring -- deferred orchestrator vendoring (snapshot landed)
+# excluded: frontend-design -- deferred orchestrator vendoring (snapshot landed)
+# excluded: internal-comms -- deferred orchestrator vendoring (snapshot landed)
+# excluded: mcp-builder -- deferred orchestrator vendoring (snapshot landed)
+# excluded: pdf -- deferred orchestrator vendoring (snapshot landed)
+# excluded: skill-creator -- deferred orchestrator vendoring (snapshot landed)
+# excluded: slack-gif-creator -- deferred orchestrator vendoring (snapshot landed)
+# excluded: theme-factory -- deferred orchestrator vendoring (snapshot landed)
+# excluded: web-artifacts-builder -- deferred orchestrator vendoring (snapshot landed)
+# excluded: webapp-testing -- deferred orchestrator vendoring (snapshot landed)
