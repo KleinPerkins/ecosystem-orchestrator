@@ -30,6 +30,8 @@ items:
   - id: prompt-architect
     state: enrolled
     reason: "first end-to-end skill consumer (flavor-2 snapshot)"
+    approved_digest: "2d5315071759bfee3f8ee18d958daad3fd28c51e83f372a8bc83883b13752ec3"
+    content_digest: "2d5315071759bfee3f8ee18d958daad3fd28c51e83f372a8bc83883b13752ec3"
   - id: google-kit
     state: enrolled
     reason: "first kind:mcp consumer (source-free discoverability descriptor)"
@@ -39,39 +41,65 @@ items:
   - id: algorithmic-art
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+    approved_digest: "47be6b955463043608007c5789340025d5ecec9c5ae926fc3ae4dd40a066c225"
+    content_digest: "47be6b955463043608007c5789340025d5ecec9c5ae926fc3ae4dd40a066c225"
   - id: canvas-design
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+    approved_digest: "75d5b5d78c783bd6c3be33e8c2530fc623fdf9d8c80982c6b1315dac9c5e247a"
+    content_digest: "75d5b5d78c783bd6c3be33e8c2530fc623fdf9d8c80982c6b1315dac9c5e247a"
   - id: claude-api
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+    approved_digest: "b9aae3dd75eafef1007d9ed48bd580735562e907eed40de6597f42b338537646"
+    content_digest: "b9aae3dd75eafef1007d9ed48bd580735562e907eed40de6597f42b338537646"
   - id: doc-coauthoring
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+    approved_digest: "46fb1e38be330db693476b5755879e079b4ce6289536ffaa1f4dfeb5ddce5067"
+    content_digest: "46fb1e38be330db693476b5755879e079b4ce6289536ffaa1f4dfeb5ddce5067"
   - id: frontend-design
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+    approved_digest: "54fe33a7928af02a2568622d53a953045157a8c98f16e63e53234d708057924a"
+    content_digest: "54fe33a7928af02a2568622d53a953045157a8c98f16e63e53234d708057924a"
   - id: internal-comms
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+    approved_digest: "777bf0e3305f61972cca7f813359712dd945cbd994e2474acaf21df770a272bc"
+    content_digest: "777bf0e3305f61972cca7f813359712dd945cbd994e2474acaf21df770a272bc"
   - id: mcp-builder
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+    approved_digest: "2f397b9c2c5b13e15b79965e61e308812162f751710326b0ff408b19e9f40644"
+    content_digest: "2f397b9c2c5b13e15b79965e61e308812162f751710326b0ff408b19e9f40644"
   - id: pdf
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+    approved_digest: "259f217326d4d5c372988e185020fef0403e5a016cdc4533e1cf815ded22895b"
+    content_digest: "259f217326d4d5c372988e185020fef0403e5a016cdc4533e1cf815ded22895b"
   - id: skill-creator
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+    approved_digest: "9403876091fef2f9d6b2337b28ee4cb8a3dccfe5e14cb1319e63235c96f3be35"
+    content_digest: "9403876091fef2f9d6b2337b28ee4cb8a3dccfe5e14cb1319e63235c96f3be35"
   - id: slack-gif-creator
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+    approved_digest: "41c605e28bd6e67f9fdda1d13ca5a705b75ff9877c75bdc61c57ba9cad2d7ea9"
+    content_digest: "41c605e28bd6e67f9fdda1d13ca5a705b75ff9877c75bdc61c57ba9cad2d7ea9"
   - id: theme-factory
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+    approved_digest: "231e72137bd06358644a6229328c682f032bc2d55e663b04396e311fd8b6cca3"
+    content_digest: "231e72137bd06358644a6229328c682f032bc2d55e663b04396e311fd8b6cca3"
   - id: web-artifacts-builder
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+    approved_digest: "57f51ec7fc2f881fa533f4c49e51c331e187e385cd8b0009d4c529201cb9edfa"
+    content_digest: "57f51ec7fc2f881fa533f4c49e51c331e187e385cd8b0009d4c529201cb9edfa"
   - id: webapp-testing
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+    approved_digest: "c5d5cc8cb240b1415e6b69f6bfd3968dfdb40db6c911191eef823acf912c47ea"
+    content_digest: "c5d5cc8cb240b1415e6b69f6bfd3968dfdb40db6c911191eef823acf912c47ea"
