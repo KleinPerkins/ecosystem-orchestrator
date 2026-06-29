@@ -29,6 +29,24 @@ orch_cfg_get() {
 # Self-contained (the orchestrator is private + the relationship owner, so ld tokens are allowed here).
 orch_canonical_noreply() { printf '%s\n' "49759187+KleinPerkins@users.noreply.github.com"; }
 
+# orch_schema_assert <file> <name/vMAJOR> — assert <file>'s `schema:` declares the expected schema
+# name + MAJOR version (P0-3). Forward-compatible by contract: readers IGNORE unknown keys, so only
+# the schema name + major are checked here; a minor bump or extra optional fields are tolerated. Used
+# for every versioned eco artifact (eco-registry/v1, eco-manifest/v1, eco-lock/v1) so an incompatible
+# schema bump fails loud instead of being silently mis-parsed. Returns 0 on match, 1 (+log) otherwise.
+orch_schema_assert() {
+  local file="$1" want="$2" got name_want maj_want name_got maj_got
+  [ -f "$file" ] || { orch_err "schema-assert: file missing: $file"; return 1; }
+  got="$(awk -F': *' '/^schema:/{print $2; exit}' "$file" 2>/dev/null | tr -d '"' | tr -d "'" | tr -d '[:space:]')"
+  name_want="${want%/*}"; maj_want="${want##*/}"
+  name_got="${got%/*}";  maj_got="${got##*/}"
+  if [ "$name_got" != "$name_want" ] || [ "$maj_got" != "$maj_want" ]; then
+    orch_err "schema mismatch in $file: got '$got', want major-compatible '$want'"
+    return 1
+  fi
+  return 0
+}
+
 orch_sha256() {
   if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}';
   elif command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | awk '{print $1}';

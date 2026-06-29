@@ -10,7 +10,7 @@
 # Read-only — never mutates either tree. Exit 0 = all in sync; 1 = drift; 2 = could not run.
 #
 #   consistency.sh [--cpp-dir DIR] [<id> ...]
-#     (no ids)   check every id in config/managed-items.txt
+#     (no ids)   check every enrolled id in config/registry.yml (state:enrolled)
 #     <id>...    check just those ids
 #
 # "Shared content" = everything the vendor actually copies: the master files EXCEPT the ld-management
@@ -20,6 +20,7 @@ set -uo pipefail
 C_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 . "$C_LIB_DIR/common.sh"
 . "$C_LIB_DIR/payload.sh"
+. "$C_LIB_DIR/registry.sh"
 
 CPP_DIR=""; ids=(); ids_explicit=0
 while [ $# -gt 0 ]; do
@@ -35,7 +36,6 @@ QUIVER="$(orch_cfg_get cpp_quiver_path)"; QUIVER="${QUIVER:-quiver}"
 SRC_GLOBAL="$(orch_expand "$(orch_cfg_get source_skills_global)")"
 SRC_MCP_LOCAL="$(orch_expand "$(orch_cfg_get source_mcp_local)")"
 [ -n "$CPP_DIR" ] || CPP_DIR="$(orch_expand "$(orch_cfg_get ld_cpp_worktree)")"
-MANAGED="$ORCH_ROOT/config/managed-items.txt"
 
 [ -d "$SRC_GLOBAL" ] || { orch_err "consistency: master skills dir missing: $SRC_GLOBAL"; exit 2; }
 [ -d "$CPP_DIR" ]    || { orch_err "consistency: cpp tree not found: $CPP_DIR (pass --cpp-dir or set ld_cpp_worktree)"; exit 2; }
@@ -49,36 +49,30 @@ resolve_master() {
   return 1
 }
 
-if [ "${#ids[@]}" -eq 0 ] && [ -f "$MANAGED" ]; then
+if [ "${#ids[@]}" -eq 0 ]; then
   while IFS= read -r line; do
-    line="${line%%#*}"; line="$(printf '%s' "$line" | tr -d '[:space:]')"
     [ -n "$line" ] && ids+=("$line")
-  done < "$MANAGED"
+  done < <(reg_ids enrolled)
 fi
-[ "${#ids[@]}" -gt 0 ] || { orch_warn "consistency: no managed items to check"; exit 0; }
+[ "${#ids[@]}" -gt 0 ] || { orch_warn "consistency: no enrolled items to check"; exit 0; }
 
-# Enrollment-drift check (added 2026-06-26). The orchestrator's managed-items.txt is a manually-
-# maintained list; the disk state (scope:global masters under SRC_GLOBAL + SRC_MCP_LOCAL) is the
-# ground truth. Whenever a global capability is added/removed and someone forgets to update
-# managed-items.txt, the orchestrator silently ignores it. This check diffs the two and reports
-# either direction as DRIFT, EXCEPT ids marked `# excluded: <id> -- <reason>` in MANAGED.
-# Only runs when caller asked for the full list (no explicit ids on the command line).
-if [ "$ids_explicit" = 0 ] && [ -f "$MANAGED" ]; then
+# Enrollment-drift check (B1a; registry-driven). config/registry.yml is the enrollment SoT; the disk
+# state (scope:global masters under SRC_GLOBAL + SRC_MCP_LOCAL) is the ground truth. Whenever a global
+# capability is added/removed and someone forgets to update the registry, the orchestrator silently
+# ignores it. This check diffs the two and reports either direction as DRIFT. A capability KNOWN to
+# the registry in ANY state (enrolled|excluded|demoted) is an expected entry; only ids on disk that
+# the registry has never heard of are drift. Only runs for the full list (no explicit ids).
+if [ "$ids_explicit" = 0 ]; then
   enroll_drift=0
-  # Read the enrolled set + exclusions from MANAGED.
-  enrolled_set=" $(printf '%s ' "${ids[@]}")"
-  excluded_set=" $(awk '/^[[:space:]]*#[[:space:]]*excluded:/ {
-    sub(/^[[:space:]]*#[[:space:]]*excluded:[[:space:]]*/, "")
-    sub(/[[:space:]]+--.*$/, "")
-    sub(/[[:space:]]+$/, "")
-    print
-  }' "$MANAGED" | tr '\n' ' ')"
+  # The registry's known set (any state) — anything here is an intentional, recorded decision.
+  known_set=" $(reg_ids | tr '\n' ' ')"
   # Discover on-disk scope:global ids. Skills: any dir under SRC_GLOBAL (dir-paradigm guarantees
   # scope:global). Mcp: any subdir of SRC_MCP_LOCAL whose meta.yml declares scope: global.
   disk_globals=""
   if [ -d "$SRC_GLOBAL" ]; then
     for d in "$SRC_GLOBAL"/*/; do
       [ -d "$d" ] || continue
+      [ -f "$d/meta.yml" ] || continue
       disk_globals="$disk_globals $(basename "$d")"
     done
   fi
@@ -90,24 +84,23 @@ if [ "$ids_explicit" = 0 ] && [ -f "$MANAGED" ]; then
       disk_globals="$disk_globals $(basename "$d")"
     done
   fi
-  # Direction 1: scope:global on disk but NOT enrolled and NOT excluded.
+  # Direction 1: scope:global on disk but unknown to the registry (any state).
   for g in $disk_globals; do
-    case "$enrolled_set" in *" $g "*) continue ;; esac
-    case "$excluded_set" in *" $g "*) continue ;; esac
-    printf '  DRIFT  %s: scope:global on disk but not in managed-items.txt (add it, or mark `# excluded: %s -- <reason>`)\n' "$g" "$g"
+    case "$known_set" in *" $g "*) continue ;; esac
+    printf '  DRIFT  %s: scope:global on disk but absent from registry.yml (enroll it, or mark it excluded: `orchestrator exclude %s -- <reason>`)\n' "$g" "$g"
     enroll_drift=1
   done
-  # Direction 2: enrolled in managed-items.txt but the master is missing/non-global on disk.
+  # Direction 2: enrolled in the registry but the master is missing/non-global on disk.
   for e in "${ids[@]}"; do
     m=""; for d in "$SRC_GLOBAL/$e" "$SRC_MCP_LOCAL/$e"; do [ -d "$d" ] && { m="$d"; break; }; done
     if [ -z "$m" ]; then
-      printf '  DRIFT  %s: enrolled in managed-items.txt but no master found under SRC_GLOBAL or SRC_MCP_LOCAL\n' "$e"
+      printf '  DRIFT  %s: enrolled in registry.yml but no master found under SRC_GLOBAL or SRC_MCP_LOCAL\n' "$e"
       enroll_drift=1
       continue
     fi
     s="$(awk -F': *' '/^scope:/{print $2; exit}' "$m/meta.yml" 2>/dev/null | tr -d '"' | tr -d "'" | tr -d '[:space:]')"
     if [ -n "$s" ] && [ "$s" != "global" ]; then
-      printf '  DRIFT  %s: enrolled but master scope=%s (only scope:global is vendorable; drop the enrollment + run `orchestrator delete %s`)\n' "$e" "$s" "$e"
+      printf '  DRIFT  %s: enrolled but master scope=%s (only scope:global is vendorable; `orchestrator demote %s` + `orchestrator cpp-sync` to delete-propagate)\n' "$e" "$s" "$e"
       enroll_drift=1
     fi
   done
@@ -115,14 +108,17 @@ if [ "$ids_explicit" = 0 ] && [ -f "$MANAGED" ]; then
     drift=1
     echo
   else
-    printf '  OK     enrollment: managed-items.txt matches the on-disk scope:global set (exclusions honored)\n'
+    printf '  OK     enrollment: registry.yml matches the on-disk scope:global set (exclusions/demotions honored)\n'
   fi
 fi
 
 # shared_list <dir> — relative paths of the shared content set, sorted (stable across machines).
+# eco-capability-manifest.yml is the orchestrator-written data-plane file (B5): it has no upstream
+# master, so it must be excluded here exactly like VENDORED.md or a per-sync regen would falsely read
+# as an orphan and break INV-master byte-equality.
 shared_list() {
   ( cd "$1" 2>/dev/null && find . -type f \
-      ! -name meta.yml ! -name install.sh ! -name VENDORED.md \
+      ! -name meta.yml ! -name install.sh ! -name VENDORED.md ! -name eco-capability-manifest.yml \
       ! -path '*/.git/*' ! -path '*/__pycache__/*' ! -name '*.pyc' \
       | sed 's|^\./||' | LC_ALL=C sort )
 }
@@ -131,12 +127,12 @@ echo "== orchestrator consistency (master <-> cpp vendored payload) =="
 for id in "${ids[@]}"; do
   master="$(resolve_master "$id" || true)"
   if [ -z "$master" ]; then printf '  DRIFT  %s: master missing (no skills/global or mcp/<id>)\n' "$id"; drift=1; continue; fi
-  # Defense-in-depth scope gate (Option A; 2026-06-26): non-global masters must not be in
-  # managed-items.txt. Flag as drift so the enrollment can be corrected (drop the entry
-  # and/or `orchestrator delete <id>` to purge any stranded cpp payload).
+  # Defense-in-depth scope gate (Option A; 2026-06-26): non-global masters must not be enrolled.
+  # Flag as drift so the enrollment can be corrected (`orchestrator demote <id>` + `cpp-sync` to
+  # purge any stranded cpp payload).
   mscope="$(awk -F': *' '/^scope:/{print $2; exit}' "$master/meta.yml" 2>/dev/null | tr -d '"' | tr -d "'" | tr -d '[:space:]')"
   if [ -n "$mscope" ] && [ "$mscope" != "global" ]; then
-    printf '  DRIFT  %s: master declares scope=%s but is enrolled in managed-items.txt (only scope:global is vendorable)\n' "$id" "$mscope"
+    printf '  DRIFT  %s: master declares scope=%s but is enrolled in registry.yml (only scope:global is vendorable)\n' "$id" "$mscope"
     drift=1; continue
   fi
   target="$(cd "$CPP_DIR" && for d in "$QUIVER"/*/"$id"; do [ -e "$d" ] && { printf '%s/%s\n' "$CPP_DIR" "$d"; break; }; done)"
@@ -204,5 +200,5 @@ EOF
 done
 
 echo
-if [ "$drift" = 0 ]; then orch_log "consistency: OK (all managed items in sync)"; exit 0
-else orch_err "consistency: DRIFT detected (re-sync with: orchestrator sync --execute, or reverse a legacy symlink)"; exit 1; fi
+if [ "$drift" = 0 ]; then orch_log "consistency: OK (all enrolled items in sync)"; exit 0
+else orch_err "consistency: DRIFT detected (re-sync with: orchestrator cpp-sync --execute, or reverse a legacy symlink)"; exit 1; fi

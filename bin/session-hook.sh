@@ -26,16 +26,26 @@ MODE="${1:-}"
 {
   echo "===== [$(date '+%Y-%m-%d %H:%M:%S')] session-hook ${MODE:-quick} ====="
   if [ "$MODE" = "--periodic" ]; then
-    # launchd: full (network OK) — doctor + heal + DRY-RUN sync. Never auto-merges to cpp.
+    # launchd: full (network OK) — doctor + reconcile + consistency + heal + DRY-RUN sync. All
+    # fail-open (|| true): a passive check must NEVER block. Never auto-merges to cpp.
     bash "$ORCH_ROOT/bin/orchestrator.sh" doctor 2>&1 | sed 's/^/  /' || true
+    # B2/B3 authority: registry<->lock parity (local; registry wins on conflict).
+    bash "$ORCH_ROOT/lib/reconcile.sh" 2>&1 | sed 's/^/  /' || true
+    # B3 enrollment-drift + master<->payload content drift (read-only).
+    bash "$ORCH_ROOT/lib/consistency.sh" 2>&1 | sed 's/^/  /' || true
     bash "$ORCH_ROOT/lib/selfmanage.sh" self-heal 2>&1 | sed 's/^/  /' || true
     # ORCH_SKIP_CPP_EXEC=1: an UNATTENDED periodic run must never execute cpp's Makefile/integrity
-    # engine fetched from origin/main (RCE surface). Dry-run sync still detects+stages drift; landing
-    # a PR (which needs a GREEN gate) stays operator-initiated via an explicit `orchestrator sync --execute`.
-    ORCH_SKIP_CPP_EXEC=1 bash "$ORCH_ROOT/lib/selfmanage.sh" sync 2>&1 | sed 's/^/  /' || true
+    # engine fetched from origin/main (RCE surface). Dry-run cpp-sync still detects drift; landing a
+    # PR (needs a GREEN gate) stays operator-initiated via an explicit `orchestrator cpp-sync --execute`.
+    ORCH_SKIP_CPP_EXEC=1 bash "$ORCH_ROOT/lib/selfmanage.sh" cpp-sync 2>&1 | sed 's/^/  /' || true
   else
     # sessionStart: keep it INSTANT + network-free (no gh calls) so it never slows a session.
     [ -f "$ORCH_CONFIG" ] && echo "  config present; orchestrator ready" || echo "  WARN config missing"
+    # B3 in-session breadcrumb: reconcile is LOCAL (reads registry.yml + committed locks; no network),
+    # so a quick registry<->lock divergence hint is cheap. Fail-open; only emits a one-liner on drift.
+    if ! bash "$ORCH_ROOT/lib/reconcile.sh" >/dev/null 2>&1; then
+      echo "  BREADCRUMB registry<->lock divergence — run 'orchestrator reconcile' (registry is authority)"
+    fi
   fi
 } >> "$LOG" 2>&1
 exit 0

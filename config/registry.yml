@@ -1,0 +1,71 @@
+schema: eco-registry/v1
+# config/registry.yml — the SOLE enrollment SoT for global capabilities (B1a; replaces the retired
+# config/managed-items.txt). The orchestrator reads this to decide what to vendor into cpp/quiver and
+# to run the enrollment-drift check; `bin/orchestrator.sh enroll|exclude|demote|status` mutate it.
+#
+# Each record is intentionally minimal. While a capability's master exists, its kind/flavor/scope/
+# expose are read LIVE from meta.yml; the OPTIONAL pinned kind/cpp_category a record may carry are a
+# delete-after-master-gone fallback only (so a stranded cpp payload can still be located + removed).
+#
+#   state: enrolled  -> vendored to cpp on `orchestrator cpp-sync`
+#          excluded  -> intentionally NOT vendored (drift check treats as an expected omission)
+#          demoted   -> was scope:global, now local-only; delete-propagated out of cpp
+#   reason: freeform; document WHY for excluded/demoted (and any non-obvious enrollment)
+#
+# Readers ignore unknown keys (forward-compatible, P0-3); journal/digest fields are follow-on-plan
+# scope. orch_schema_assert gates the schema major. The `items:` list below is machine-edited by the
+# enroll/exclude/demote verbs, so keep it free of interleaved comments (one record per id).
+#
+# Excluded set context: agent-route is a machine-local workspace router (not meaningful as a cpp
+# copy). The Anthropic flavor-2 snapshots (anthropics/skills@35414756) have landed under
+# source_skills_global but enrolling+vendoring each to cpp is a later governed orchestrator PR; they
+# are excluded until then so the drift check treats them as expected omissions.
+items:
+  - id: prompt-architect
+    state: enrolled
+    reason: "first end-to-end skill consumer (flavor-2 snapshot)"
+  - id: google-kit
+    state: enrolled
+    reason: "first kind:mcp consumer (source-free discoverability descriptor)"
+  - id: agent-route
+    state: excluded
+    reason: "machine-local workspace router; runs only on the operator's own dev box"
+  - id: algorithmic-art
+    state: enrolled
+    reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+  - id: canvas-design
+    state: enrolled
+    reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+  - id: claude-api
+    state: enrolled
+    reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+  - id: doc-coauthoring
+    state: enrolled
+    reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+  - id: frontend-design
+    state: enrolled
+    reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+  - id: internal-comms
+    state: enrolled
+    reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+  - id: mcp-builder
+    state: enrolled
+    reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+  - id: pdf
+    state: enrolled
+    reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+  - id: skill-creator
+    state: enrolled
+    reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+  - id: slack-gif-creator
+    state: enrolled
+    reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+  - id: theme-factory
+    state: enrolled
+    reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+  - id: web-artifacts-builder
+    state: enrolled
+    reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+  - id: webapp-testing
+    state: enrolled
+    reason: "enroll anthropic flavor-2 skill fleet for cpp sync"

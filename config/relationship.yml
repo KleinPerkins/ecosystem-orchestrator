@@ -24,6 +24,15 @@ cpp_merge_mode: auto-squash
 # NEVER write these cpp paths (control plane):
 cpp_forbidden_paths: _ops/ .github/
 
+# --- WF2 cpp-sync (Phase 1) ---
+# enabled_kinds: the cpp-VENDORABLE kinds. cpp-sync REFUSES any enrolled id whose meta.yml kind is not
+# in this list. Phase 1 = skill + mcp; Phase 2 appends a kind ONLY after a per-kind contract test
+# passes (Decision D5; p2-generalize). Space-separated.
+enabled_kinds: skill mcp
+# cpp_sync_denylist: orchestrator-owned cpp ids that delete-propagation must NEVER auto-remove (the
+# data-plane manifest tooling item lives here, B5). Space-separated.
+cpp_sync_denylist: eco-capability-sync
+
 # --- LD's local cpp working tree (Decision A: symlink-dedup ABANDONED; consistency-check target) ---
 # Symlink-dedup is retired — unsafe (routine cpp git ops write THROUGH the link into the global SOT)
 # and semantically wrong (master != vendored payload). cpp keeps the REAL vendored copy; integrity is
