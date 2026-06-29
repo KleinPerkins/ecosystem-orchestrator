@@ -9,8 +9,8 @@ Two contained workflows with a hard boundary — a registration change never aut
 
 - **WF1 — registration + enforcement.** Maintain a trustworthy registry of global capabilities and the
   active layer that keeps it honest. Decoupled from delivery.
-- **WF2 — independent sync to cpp (Phase 1 = skill + mcp).** Read the registry and propagate enrolled
-  capabilities into cpp's data plane via governed auto-merge PRs.
+- **WF2 — independent sync to cpp.** Read the registry and propagate enabled enrolled capabilities into
+  cpp's data plane via governed auto-merge PRs.
 
 Canonical end-state doc: `~/dev/OPERATING-MANUAL.md` §10h. The cpp-side mechanics live under cpp
 governance (`_ops/bin/eco-capability-reconcile.sh`, `_ops/runbooks/eco-capability-sync.md`).
@@ -24,13 +24,17 @@ governance (`_ops/bin/eco-capability-reconcile.sh`, `_ops/runbooks/eco-capabilit
 | `enroll <id> -- <reason>` | mark a global capability `state: enrolled` (eligible for `cpp-sync`) |
 | `exclude <id> -- <reason>` | mark `state: excluded` (a later `cpp-sync` delete-propagates any cpp payload) |
 | `demote <id> -- <reason>` | mark `state: demoted` (global→local; delete-propagates from cpp) |
+| `approve <id>` | compute the current shared-content digest and pin `approved_digest` for flavor-2 sync |
 | `status` | per-id registry state + cpp presence (plain view) |
+| `status --matrix [--json]` | live matrix: registry, lock, digest approval, cpp payload/manifest, open PR, journal, next action |
+| `repair` | run doctor/self-heal, refresh derivable journal fields from observed cpp main, then print the matrix |
 | `reconcile` | **authority** check: committed `.eco-registry.lock` vs `registry.yml` (registry wins) |
 | `doctor` | read-only health: registry presence, enrollment-drift, lock parity, WF2 auto-merge preconditions |
 | `consistency [<id>]` | master ↔ cpp-payload byte-equality (Decision-A compensating control) |
 
 *Rename = `exclude old` → `enroll new` → `cpp-sync` (delete old payload + vendor new).*
-*`rollback` / `quarantine` / `status --matrix` are **follow-on-plan scope** — not implemented here.*
+*Registry journal fields are a cache. `.eco-registry.lock` remains enrollment/meta parity only; status and
+repair label malformed or stale journal state instead of treating it as authority.*
 
 **WF2 — sync to cpp:**
 
@@ -38,11 +42,20 @@ governance (`_ops/bin/eco-capability-reconcile.sh`, `_ops/runbooks/eco-capabilit
 | --- | --- |
 | `cpp-sync` | DRY-RUN: preflight every enrolled id, report the vendor/delete/manifest plan |
 | `cpp-sync --execute` | vendor the ok set → delete-propagate de-enrolled → ONE atomic manifest PR (auto-merge on green) |
+| `rollback [--execute] <id>` | restore `quiver/<cat>/<id>` from `last_synced_cpp_sha` through a governed data-plane PR |
+| `quarantine <id> -- <reason>` | close in-flight per-id/manifest PRs, mark excluded, delete-propagate, regenerate manifest |
 
-`enabled_kinds` (in `config/relationship.yml`) gates which kinds are cpp-vendorable (Phase 1 = `skill mcp`).
+`enabled_kinds` (in `config/relationship.yml`) gates which kinds are cpp-vendorable.
 Preflight = kind ∈ `enabled_kinds` · translated kind ∈ cpp's live enum and kind==shelf(category) · zero-link
-clean · local cpp-integrity GREEN · `preflight_supply_chain` (no-op stub, follow-on). A non-empty block set
-aborts before any push.
+clean · local cpp-integrity GREEN · flavor-2 `approved_digest` matches the current shared-content digest.
+A non-empty block set aborts before any push, so a mixed approved/blocked enrolled set never partially opens
+payload PRs. `cpp-sync --execute` opens async auto-merge PRs; `last_synced_cpp_sha` is refreshed only from
+observed cpp main by `repair`, not by PR creation.
+
+The cpp reconciler is table-driven for the Phase-2 routing set: `skill` directory links to all tools,
+`mcp` is record-only, `sub-agent` links `<id>.md` into agent homes, `rule` links `<id>.mdc` into Cursor
+rules only, and `tool` is record-only. Keep `rule sub-agent tool` out of `enabled_kinds` until the
+cpp-governed reconciler PR is green and merged.
 
 **Self-management:** `install` (Cursor `sessionStart` hook + launchd agent), `self-heal`, `vendor` /
 `delete` (the per-id edge primitives `cpp-sync` calls), `zero-link`.
@@ -64,6 +77,8 @@ lib/registry.sh            read/write config/registry.yml (eco-registry/v1)
 lib/selfmanage.sh          install + cpp-sync (preflight, vendor, delete-propagate, manifest)
 lib/vendor.sh              the single sanctioned ld->cpp edge writer (per-id payload PR)
 lib/manifest.sh            the one atomic data-plane manifest PR (eco-manifest/v1)
+lib/status.sh              status matrix and JSON output
+lib/recovery.sh            rollback and quarantine recovery verbs
 lib/payload.sh             payload generators (shared by vendor + consistency + manifest)
 lib/consistency.sh         master <-> cpp payload byte-equality (Decision-A control)
 lib/reconcile.sh           orchestrator-side registry<->lock authority

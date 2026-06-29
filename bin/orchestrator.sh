@@ -4,7 +4,11 @@
 #   enroll <id> [reason]   mark a global capability enrolled for cpp vendoring (registry SoT, B1b)
 #   exclude <id> [reason]  mark it intentionally NOT vendored
 #   demote <id> [reason]   mark it global->local; delete-propagated out of cpp on the next cpp-sync
-#   status                 registry enrollment state + cpp presence per id (B1b)
+#   approve <id>           pin the current content digest for flavor-2 supply-chain approval
+#   status [--matrix]      registry enrollment state + cpp presence per id (B1b)
+#   repair                 refresh derivable journal state from observed cpp main
+#   rollback <id>          restore a payload from last_synced_cpp_sha via a governed cpp PR
+#   quarantine <id> -- <r> close in-flight PRs, exclude, delete-propagate, regenerate manifest
 #   vendor <id>        vendor a global capability into cpp via a governed PR (WS-7)
 #   delete <id>        propagate a master delete via a governed cpp deletion PR (WS-7)
 #   cpp-sync           registry-driven sync of enrolled capabilities into cpp (WF2/B4)
@@ -22,6 +26,8 @@ ORCH_BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 . "$ORCH_BIN_DIR/../lib/common.sh"
 # shellcheck source=../lib/registry.sh
 . "$ORCH_BIN_DIR/../lib/registry.sh"
+# shellcheck source=../lib/payload.sh
+. "$ORCH_BIN_DIR/../lib/payload.sh"
 
 cmd_help() { sed -n '2,18p' "$0"; }
 
@@ -44,6 +50,11 @@ _reg_verb() {
 }
 
 cmd_status() {
+  if [ "${1:-}" = "--matrix" ]; then
+    bash "$ORCH_BIN_DIR/../lib/status.sh" "$@"; return $?
+  elif [ $# -gt 0 ]; then
+    orch_err "usage: orchestrator status [--matrix [--json]]"; return 2
+  fi
   reg_assert_schema || return 1
   local cpp quiver; cpp="$(orch_expand "$(orch_cfg_get ld_cpp_worktree)")"
   quiver="$(orch_cfg_get cpp_quiver_path)"; quiver="${quiver:-quiver}"
@@ -63,6 +74,89 @@ cmd_status() {
     else cppcol="-"; fi
     printf '%-24s %-9s %s\n' "$id" "$st" "$cppcol"
   done < <(reg_ids)
+}
+
+_cli_meta_field() {
+  local file="$1" field="$2"
+  awk -F': *' -v f="$field" '$1==f{print $2; exit}' "$file" 2>/dev/null | tr -d '"' | tr -d "'" | tr -d '[:space:]'
+}
+
+_cli_master_dir() {
+  local id="$1" src_global src_mcp d
+  src_global="$(orch_expand "$(orch_cfg_get source_skills_global)")"
+  src_mcp="$(orch_expand "$(orch_cfg_get source_mcp_local)")"
+  for d in "$src_global/$id" "$src_mcp/$id"; do
+    [ -f "$d/meta.yml" ] && { printf '%s\n' "$d"; return 0; }
+  done
+  return 1
+}
+
+cmd_approve() {
+  local id="${1:-}" master kind flavor old digest
+  [ -n "$id" ] || { orch_err "usage: orchestrator approve <id>"; return 2; }
+  reg_assert_schema || return 1
+  reg_has "$id" || { orch_err "approve: $id is not in registry.yml (enroll it first)"; return 1; }
+  master="$(_cli_master_dir "$id" || true)"
+  [ -n "$master" ] || { orch_err "approve: master not found for $id"; return 1; }
+  kind="$(_cli_meta_field "$master/meta.yml" kind)"; kind="${kind:-skill}"
+  flavor="$(_cli_meta_field "$master/meta.yml" flavor)"; flavor="${flavor:-1}"
+  digest="$(payload_content_digest "$master" || true)"
+  [ -n "$digest" ] || { orch_err "approve: could not compute content digest for $id"; return 1; }
+  old="$(reg_journal_raw "$id" approved_digest)"
+  printf 'id: %s\nkind: %s\nflavor: %s\nold_approved_digest: %s\nnew_approved_digest: %s\n' \
+    "$id" "$kind" "$flavor" "${old:-<none>}" "$digest"
+  reg_journal_set "$id" approved_digest "$digest" || return 1
+  reg_journal_set "$id" content_digest "$digest" || return 1
+  if [ "$flavor" = "2" ]; then orch_log "approval pinned: $id@$digest"
+  else orch_log "approval recorded for flavor-$flavor item (advisory): $id@$digest"; fi
+}
+
+_repair_rel_at_ref() {
+  local cpp="$1" ref="$2" quiver="$3" id="$4"
+  git -C "$cpp" ls-tree -r --name-only "$ref" -- "$quiver" 2>/dev/null \
+    | awk -F/ -v id="$id" '$NF=="VENDORED.md" && $(NF-1)==id {sub(/\/VENDORED\.md$/,""); print; exit}'
+}
+
+cmd_repair() {
+  reg_assert_schema || return 1
+  orch_log "repair: running doctor"
+  bash "$ORCH_BIN_DIR/orchestrator.sh" doctor || orch_warn "repair: doctor reported warnings/failures"
+  orch_log "repair: running self-heal"
+  bash "$ORCH_BIN_DIR/../lib/selfmanage.sh" self-heal || orch_warn "repair: self-heal did not reach green"
+
+  local work default_branch cpp quiver ref sha now id master digest rel
+  work="$(orch_expand "$(orch_cfg_get work_clone_dir)")"
+  default_branch="$(orch_cfg_get cpp_default_branch)"; default_branch="${default_branch:-main}"
+  if [ -d "$work/.git" ]; then
+    git -C "$work" fetch --depth 1 origin "$default_branch" >/dev/null 2>&1 || orch_warn "repair: could not refresh work clone"
+  fi
+
+  cpp="$(orch_expand "$(orch_cfg_get ld_cpp_worktree)")"
+  quiver="$(orch_cfg_get cpp_quiver_path)"; quiver="${quiver:-quiver}"
+  [ -d "$cpp/.git" ] || { orch_err "repair: cpp worktree unavailable: $cpp"; return 1; }
+  ref="$default_branch"
+  git -C "$cpp" rev-parse --verify "$ref^{commit}" >/dev/null 2>&1 || ref="HEAD"
+  sha="$(git -C "$cpp" rev-parse "$ref" 2>/dev/null || true)"
+  [ -n "$sha" ] || { orch_err "repair: could not resolve observed cpp main/HEAD"; return 1; }
+  now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  while IFS= read -r id; do
+    [ -n "$id" ] || continue
+    master="$(_cli_master_dir "$id" || true)"
+    if [ -n "$master" ]; then
+      digest="$(payload_content_digest "$master" || true)"
+      [ -n "$digest" ] && reg_journal_set "$id" content_digest "$digest"
+    fi
+    rel="$(_repair_rel_at_ref "$cpp" "$sha" "$quiver" "$id")"
+    if [ -n "$rel" ]; then
+      reg_journal_set "$id" last_synced_cpp_sha "$sha" || return 1
+      reg_journal_set "$id" last_synced_at "$now" || return 1
+      orch_log "repair: refreshed $id last_synced_cpp_sha=${sha:0:12}"
+    fi
+  done < <(reg_ids)
+
+  orch_log "repair: status matrix"
+  bash "$ORCH_BIN_DIR/../lib/status.sh" --matrix
 }
 
 cmd_zero_link() {
@@ -139,6 +233,8 @@ cmd_dedup()    { bash "$ORCH_BIN_DIR/../lib/dedup.sh" "$@"; }
 cmd_cpp_sync() { bash "$ORCH_BIN_DIR/../lib/selfmanage.sh" cpp-sync "$@"; }
 cmd_selfheal() { bash "$ORCH_BIN_DIR/../lib/selfmanage.sh" self-heal "$@"; }
 cmd_install()  { bash "$ORCH_BIN_DIR/../lib/selfmanage.sh" install "$@"; }
+cmd_rollback() { bash "$ORCH_BIN_DIR/../lib/recovery.sh" rollback "$@"; }
+cmd_quarantine() { bash "$ORCH_BIN_DIR/../lib/recovery.sh" quarantine "$@"; }
 
 main() {
   local sub="${1:-help}"; shift || true
@@ -146,7 +242,9 @@ main() {
     enroll)     cmd_enroll "$@" ;;
     exclude)    cmd_exclude "$@" ;;
     demote)     cmd_demote "$@" ;;
+    approve)    cmd_approve "$@" ;;
     status)     cmd_status "$@" ;;
+    repair)     cmd_repair "$@" ;;
     vendor)     cmd_vendor "$@" ;;
     delete)     cmd_delete "$@" ;;
     cpp-sync)   cmd_cpp_sync "$@" ;;
@@ -157,6 +255,8 @@ main() {
     install)    cmd_install "$@" ;;
     zero-link)  cmd_zero_link "$@" ;;
     doctor)     cmd_doctor "$@" ;;
+    rollback)   cmd_rollback "$@" ;;
+    quarantine) cmd_quarantine "$@" ;;
     -h|--help|help) cmd_help ;;
     *) orch_err "unknown subcommand: $sub"; cmd_help; exit 2 ;;
   esac

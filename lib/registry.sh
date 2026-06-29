@@ -12,8 +12,13 @@
 #
 # While the master exists, kind/flavor/scope/expose are read LIVE from its meta.yml; the pinned
 # kind/cpp_category here are a delete-after-master-gone fallback so the orchestrator can still locate
-# and remove a stranded cpp payload. Journal/digest fields are follow-on-plan scope (eco-registry/v1
-# ignores unknown keys, so the follow-on can add them without a major bump — see Follow-on plan).
+# and remove a stranded cpp payload.
+#
+# Optional journal fields are machine-edited cache/state, not enrollment authority:
+#   content_digest        64 lowercase hex digest last observed by approve/status/repair
+#   approved_digest       64 lowercase hex digest approved for flavor-2 sync
+#   last_synced_cpp_sha   hex-ish cpp main commit containing the payload
+#   last_synced_at        UTC ISO-8601 timestamp when last_synced_cpp_sha was refreshed
 #
 # Dependency-free awk parsing (matches the orchestrator's flat-config philosophy). ids + state are
 # bare kebab/word tokens (never quoted); reason may be quoted (surrounding quotes stripped on read).
@@ -59,6 +64,36 @@ reg_reason()       { reg_field "$1" reason; }
 reg_kind()         { reg_field "$1" kind; }
 reg_cpp_category() { reg_field "$1" cpp_category; }
 
+reg_journal_raw() { reg_field "$1" "$2"; }
+
+reg_journal_field_valid() {
+  local field="$1" value="$2"
+  [ -n "$value" ] || return 1
+  case "$field" in
+    content_digest|approved_digest) [[ "$value" =~ ^[0-9a-f]{64}$ ]] ;;
+    last_synced_cpp_sha)            [[ "$value" =~ ^[0-9a-f]{7,40}$ ]] ;;
+    last_synced_at)                 [[ "$value" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]] ;;
+    *)                              orch_err "unknown registry journal field: $field"; return 2 ;;
+  esac
+}
+
+reg_journal_get() {
+  local id="$1" field="$2" value
+  value="$(reg_journal_raw "$id" "$field")"
+  reg_journal_field_valid "$field" "$value" >/dev/null 2>&1 && printf '%s\n' "$value"
+}
+
+reg_journal_invalid_fields() {
+  local id="$1" field value
+  for field in content_digest approved_digest last_synced_cpp_sha last_synced_at; do
+    value="$(reg_journal_raw "$id" "$field")"
+    [ -n "$value" ] || continue
+    if ! reg_journal_field_valid "$field" "$value" >/dev/null 2>&1; then
+      printf '%s=%s\n' "$field" "$value"
+    fi
+  done
+}
+
 # reg_has <id> — true if the id has any record (any state).
 reg_has() { [ -n "$(reg_state "$1")" ]; }
 
@@ -90,3 +125,63 @@ reg_set() {
   ' "$f" > "$tmp" || { rm -f "$tmp"; return 1; }
   mv "$tmp" "$f"
 }
+
+_reg_journal_write() {
+  local mode="$1" id="$2" field="$3" value="${4:-}" f tmp
+  [ -n "$id" ] && [ -n "$field" ] || { orch_err "reg_journal_$mode: usage: <id> <field> [value]"; return 2; }
+  case "$field" in content_digest|approved_digest|last_synced_cpp_sha|last_synced_at) : ;; *) orch_err "invalid journal field: $field"; return 2 ;; esac
+  if [ "$mode" = "set" ] && ! reg_journal_field_valid "$field" "$value"; then
+    orch_err "invalid $field value: $value"; return 2
+  fi
+  reg_has "$id" || { orch_err "registry id not found: $id"; return 1; }
+  f="$(reg_file)"; tmp="$(mktemp)" || return 1
+  REG_FILE="$f" REG_ID="$id" REG_FIELD="$field" REG_VALUE="$value" REG_MODE="$mode" python3 - <<'PY' > "$tmp" || { rm -f "$tmp"; return 1; }
+import os, re, sys
+
+path = os.environ["REG_FILE"]
+want = os.environ["REG_ID"]
+field = os.environ["REG_FIELD"]
+value = os.environ["REG_VALUE"]
+mode = os.environ["REG_MODE"]
+
+lines = open(path).read().splitlines()
+starts = []
+for i, line in enumerate(lines):
+    m = re.match(r"^(\s*)-\s*id:\s*([^#\s]+)\s*$", line)
+    if m:
+        starts.append((i, m.group(2)))
+
+target = None
+for pos, (start, rec_id) in enumerate(starts):
+    if rec_id == want:
+        end = starts[pos + 1][0] if pos + 1 < len(starts) else len(lines)
+        target = (start, end)
+        break
+
+if target is None:
+    sys.exit(3)
+
+start, end = target
+out = []
+done = False
+for i, line in enumerate(lines):
+    if start < i < end and re.match(r"^\s*" + re.escape(field) + r":\s*", line):
+        if mode == "set":
+            out.append(f'    {field}: "{value}"')
+        done = True
+        continue
+    if i == end and mode == "set" and not done:
+        out.append(f'    {field}: "{value}"')
+        done = True
+    out.append(line)
+
+if end == len(lines) and mode == "set" and not done:
+    out.append(f'    {field}: "{value}"')
+
+print("\n".join(out) + "\n", end="")
+PY
+  mv "$tmp" "$f"
+}
+
+reg_journal_set()   { _reg_journal_write set "$@"; }
+reg_journal_clear() { _reg_journal_write clear "$@"; }

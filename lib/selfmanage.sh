@@ -96,19 +96,56 @@ EOF
 SRC_GLOBAL="$(orch_expand "$(orch_cfg_get source_skills_global)")"
 SRC_MCP_LOCAL="$(orch_expand "$(orch_cfg_get source_mcp_local)")"
 
-# _master_kind <id> — kind read LIVE from the master meta.yml (empty if no master resolves).
-_master_kind() {
+_meta_field() {
+  local file="$1" field="$2"
+  awk -F': *' -v f="$field" '$1==f{print $2; exit}' "$file" 2>/dev/null | tr -d '"' | tr -d "'" | tr -d '[:space:]'
+}
+
+_master_dir() {
   local id="$1" d
   for d in "$SRC_GLOBAL/$id" "$SRC_MCP_LOCAL/$id"; do
-    [ -f "$d/meta.yml" ] && { awk -F': *' '/^kind:/{print $2; exit}' "$d/meta.yml" | tr -d '"' | tr -d "'" | tr -d '[:space:]'; return 0; }
+    [ -f "$d/meta.yml" ] && { printf '%s\n' "$d"; return 0; }
   done
   return 1
 }
 
-# preflight_supply_chain <id> — FOLLOW-ON-PLAN STUB. A no-op in this plan; the follow-on plan
-# implements the flavor-2 digest-approval gate (approved_digest bound to the content digest at
-# --execute). Always returns 0 here so cpp-sync's contract has the hook wired but inert.
-preflight_supply_chain() { return 0; }
+# _master_kind <id> — kind read LIVE from the master meta.yml (empty if no master resolves).
+_master_kind() {
+  local d; d="$(_master_dir "$1" || true)"
+  [ -n "$d" ] || return 1
+  _meta_field "$d/meta.yml" kind
+}
+
+_master_flavor() {
+  local d flavor; d="$(_master_dir "$1" || true)"
+  [ -n "$d" ] || return 1
+  flavor="$(_meta_field "$d/meta.yml" flavor)"
+  [ -n "$flavor" ] || flavor="1"
+  printf '%s\n' "$flavor"
+}
+
+preflight_supply_chain() {
+  local id="$1" master flavor approved current
+  master="$(_master_dir "$id" || true)"
+  [ -n "$master" ] || { orch_err "supply-chain: $id has no master"; return 1; }
+  flavor="$(_master_flavor "$id" || true)"
+  [ "$flavor" = "2" ] || return 0
+
+  approved="$(reg_journal_get "$id" approved_digest)"
+  if [ -z "$approved" ]; then
+    local raw; raw="$(reg_journal_raw "$id" approved_digest)"
+    if [ -n "$raw" ]; then orch_err "supply-chain: $id has malformed approved_digest ($raw)"
+    else orch_err "supply-chain: $id flavor-2 is missing approved_digest (run 'orchestrator approve $id')"; fi
+    return 1
+  fi
+  current="$(payload_content_digest "$master" || true)"
+  if [ -z "$current" ]; then orch_err "supply-chain: $id digest could not be computed"; return 1; fi
+  if [ "$current" != "$approved" ]; then
+    orch_err "supply-chain: $id digest drifted (approved=$approved current=$current; run 'orchestrator approve $id' after review)"
+    return 1
+  fi
+  return 0
+}
 
 # cpp-sync entrypoint. Preflight first (no pushes); only a fully-clear preflight proceeds to --execute.
 cmd_cpp_sync() {
@@ -126,9 +163,18 @@ cmd_cpp_sync() {
     if [ -z "$kind" ]; then block="$block $id(no-master)"; continue; fi
     case "$enabled" in *" $kind "*) ;; *) skip="$skip $id($kind!enabled_kinds)"; continue ;; esac        # (1)
     if ! payload_cpp_kind_for_kind "$kind" >/dev/null 2>&1; then block="$block $id($kind!vendorable)"; continue; fi  # (2)
-    preflight_supply_chain "$id" || { block="$block $id(supply-chain)"; continue; }                      # (5) stub
+    preflight_supply_chain "$id" || { block="$block $id(supply-chain)"; continue; }                      # (5)
     ok="$ok $id"
   done <<< "$enrolled"
+
+  if [ "${ORCH_CPP_SYNC_PREFLIGHT_ONLY:-0}" = 1 ]; then
+    orch_log "cpp-sync preflight-only: OK=[${ok# }] SKIP=[${skip# }] BLOCK=[${block# }]"
+    if [ -n "${block# }" ]; then
+      orch_err "cpp-sync: preflight BLOCK set is non-empty -> aborting before any push:${block}"
+      return 1
+    fi
+    return 0
+  fi
 
   # (3)+(4): dry-run vendor builds the payload, asserts zero-link, runs cpp's integrity engine and
   # refuses RED. A non-zero dry-run for an ok id is a hard block (moves it out of the executable set).

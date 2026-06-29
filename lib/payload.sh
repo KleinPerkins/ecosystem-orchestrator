@@ -103,6 +103,33 @@ payload_expose_norm() {
   printf '%s' "$raw" | tr ' ' '\n' | grep -v '^$' | LC_ALL=C sort -u | paste -sd' ' -
 }
 
+# payload_content_digest <dir> — stable SHA-256 fingerprint of a capability's NORMALIZED shared-content
+# set (follow-on f1 / Decision G1). Uses the EXACT same exclusions + sorted relative traversal as
+# consistency.sh's shared_list (meta.yml, install.sh, VENDORED.md, eco-capability-manifest.yml, .git,
+# __pycache__, *.pyc), so the digest of an ld master equals the digest of its freshly-vendored cpp
+# payload — i.e. digest-equality == consistency-equality (G1=shared-only). ANY change to a shared file
+# (content edit, add, remove, OR rename) flips the digest: the hash is taken over a deterministic
+# "<relpath>\n<file-sha256>\n" stream, so a move is caught as well as a content change. Prints the
+# 64-char hex digest; returns 1 (printing nothing) if <dir> is missing. NOTE: for kind:mcp the master
+# source is NOT what gets vendored (a descriptor is), so this is an upstream-source fingerprint only and
+# the f3 supply-chain gate is scoped to flavor-2 (third-party-snapshot) masters, where it does match.
+payload_content_digest() {
+  local dir="$1"
+  [ -d "$dir" ] || return 1
+  _pcd_sha() {   # sha256 of stdin -> bare hex (portable across coreutils / macOS / openssl)
+    if   command -v sha256sum >/dev/null 2>&1; then sha256sum | awk '{print $1}'
+    elif command -v shasum    >/dev/null 2>&1; then shasum -a 256 | awk '{print $1}'
+    else openssl dgst -sha256 | awk '{print $NF}'; fi
+  }
+  local stream
+  stream="$( cd "$dir" 2>/dev/null && find . -type f \
+      ! -name meta.yml ! -name install.sh ! -name VENDORED.md ! -name eco-capability-manifest.yml \
+      ! -path '*/.git/*' ! -path '*/__pycache__/*' ! -name '*.pyc' \
+      | sed 's|^\./||' | LC_ALL=C sort | while IFS= read -r f; do printf '%s\n' "$f"; _pcd_sha < "$f"; done )"
+  printf '%s' "$stream" | _pcd_sha
+  unset -f _pcd_sha
+}
+
 # payload_emit_manifest <dst_file> <owned_csv> <existing_text> <id:category:scope:expose>...
 # Write the data-plane eco-capability-manifest.yml (schema eco-manifest/v1, meta-less so cpp's C0-C6
 # engine never parses it). The body (owned_ids + items) is the only diff-determining content; the
