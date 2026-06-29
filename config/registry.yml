@@ -137,3 +137,6 @@ items:
     content_digest: "c5d5cc8cb240b1415e6b69f6bfd3968dfdb40db6c911191eef823acf912c47ea"
     last_synced_cpp_sha: "9919727575c51dc5f0fc2d71eb71dc25d1363974"
     last_synced_at: "2026-06-29T07:16:38Z"
+  - id: capability
+    state: enrolled
+    reason: "PM capability playbook (flavor-1 homegrown global skill)"
