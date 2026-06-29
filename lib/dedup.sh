@@ -40,7 +40,8 @@ ID="${args[0]:-}"
 
 QUIVER="$(orch_cfg_get cpp_quiver_path)"; QUIVER="${QUIVER:-quiver}"
 SRC_GLOBAL="$(orch_expand "$(orch_cfg_get source_skills_global)")"
-MASTER="$SRC_GLOBAL/$ID"
+MASTER="$(orch_resolve_skill_master "$SRC_GLOBAL" "$ID" 2>/dev/null || true)"
+[ -n "$MASTER" ] || MASTER="$SRC_GLOBAL/skills/$ID"
 [ -d "$MASTER" ] || { orch_err "master not found: $MASTER"; exit 1; }
 
 [ -n "$CPP_DIR" ] || CPP_DIR="$(orch_expand "$(orch_cfg_get ld_cpp_worktree)")"

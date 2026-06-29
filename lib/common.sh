@@ -53,6 +53,38 @@ orch_sha256() {
   else openssl dgst -sha256 "$1" | awk '{print $NF}'; fi
 }
 
+orch_meta_field() {
+  local file="$1" field="$2"
+  awk -F': *' -v f="$field" '$1==f{print $2; exit}' "$file" 2>/dev/null | tr -d '"' | tr -d "'" | tr -d '[:space:]'
+}
+
+orch_skill_shelves() { printf '%s\n' skills rules sub-agents tools; }
+
+orch_skill_shelf_for_kind() {
+  case "$1" in
+    skill)     printf 'skills\n' ;;
+    rule)      printf 'rules\n' ;;
+    sub-agent) printf 'sub-agents\n' ;;
+    tool)      printf 'tools\n' ;;
+    *) return 1 ;;
+  esac
+}
+
+orch_resolve_skill_master() {
+  local scope_root="$1" id="$2" shelf
+  for shelf in $(orch_skill_shelves); do
+    [ -f "$scope_root/$shelf/$id/meta.yml" ] && { printf '%s\n' "$scope_root/$shelf/$id"; return 0; }
+  done
+  return 1
+}
+
+orch_each_skill_meta() {
+  local scope_root="$1" shelf m
+  for shelf in $(orch_skill_shelves); do
+    for m in "$scope_root/$shelf"/*/meta.yml; do [ -f "$m" ] && printf '%s\n' "$m"; done
+  done
+}
+
 # orch_guard_rmrf <dir> — return 0 ONLY if <dir> is a safe rm -rf target: a non-empty, absolute path
 # with at least two segments, and neither "/" nor $HOME. Callers MUST gate any rm -rf on this so a
 # mis-expanded/empty config value can never delete a top-level dir or the whole home.

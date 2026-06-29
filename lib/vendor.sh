@@ -52,12 +52,14 @@ SRC_MCP_LOCAL="$(orch_expand "$(orch_cfg_get source_mcp_local)")"
 # empty when nothing resolves — callers that require the master (non-delete) still gate on
 # `[ -d "$MASTER" ]` so a missing master fails loud.
 resolve_master() {
-  if [ -d "$SRC_GLOBAL/$ID" ]; then printf '%s\n' "$SRC_GLOBAL/$ID"; return 0; fi
+  local d
+  d="$(orch_resolve_skill_master "$SRC_GLOBAL" "$ID" 2>/dev/null || true)"
+  [ -n "$d" ] && { printf '%s\n' "$d"; return 0; }
   if [ -n "$SRC_MCP_LOCAL" ] && [ -d "$SRC_MCP_LOCAL/$ID" ]; then printf '%s\n' "$SRC_MCP_LOCAL/$ID"; return 0; fi
   return 1
 }
 MASTER="$(resolve_master 2>/dev/null || true)"
-[ -n "$MASTER" ] || MASTER="$SRC_GLOBAL/$ID"  # placeholder for delete-mode / "not found" error msg
+[ -n "$MASTER" ] || MASTER="$SRC_GLOBAL/skills/$ID"  # placeholder for delete-mode / "not found" error msg
 
 # Defense-in-depth scope gate (Option A; 2026-06-26): the orchestrator MUST NEVER vendor a
 # non-global master into cpp. Skill masters get this for free via the directory paradigm (only
@@ -172,7 +174,8 @@ if [ "$DELETE" = 1 ]; then
   [ -n "$REL" ] || { orch_warn "nothing to delete: no $QUIVER/*/$ID in cpp"; exit 0; }
 else
   KIND="$(awk -F': *' '/^kind:/{print $2; exit}' "$MASTER/meta.yml" 2>/dev/null)"; KIND="${KIND:-skill}"
-  REL="$QUIVER/$(cpp_category_for_kind "$KIND")/$ID"
+  CAT="$(cpp_category_for_kind "$KIND")" || exit 1
+  REL="$QUIVER/$CAT/$ID"
 fi
 git -C "$WORK" checkout -qB "$BRANCH"
 

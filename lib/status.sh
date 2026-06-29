@@ -33,7 +33,9 @@ _meta_field() {
 
 master_dir() {
   local id="$1" d
-  for d in "$SRC_GLOBAL/$id" "$SRC_MCP_LOCAL/$id"; do
+  d="$(orch_resolve_skill_master "$SRC_GLOBAL" "$id" 2>/dev/null || true)"
+  [ -n "$d" ] && { printf '%s\n' "$d"; return 0; }
+  for d in "$SRC_MCP_LOCAL/$id"; do
     [ -f "$d/meta.yml" ] && { printf '%s\n' "$d"; return 0; }
   done
   return 1

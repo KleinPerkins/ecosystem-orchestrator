@@ -45,9 +45,9 @@ payload_cpp_category_for_kind() {
     workflow)           printf 'workflows\n' ;;
     mcp)                printf 'mcp\n' ;;
     sub-agent|subagent) printf 'sub-agents\n' ;;
-    rule|doc)           printf 'rules\n' ;;
-    asset|data|tool|tooling) printf 'tooling\n' ;;
-    *)                  printf 'skills\n' ;;
+    rule)               printf 'rules\n' ;;
+    tool|tooling)       printf 'tooling\n' ;;
+    *) printf 'payload_cpp_category_for_kind: kind %s is not vendorable to cpp (cpp shelves: skills|workflows|sub-agents|mcp|tooling|rules; asset|doc|data are kp-only/retired)\n' "$1" >&2; return 1 ;;
   esac
 }
 
@@ -118,9 +118,10 @@ payload_shared_list() {
       find . -type f | sed 's|^\./||'
     fi | while IFS= read -r f; do
       [ -n "$f" ] || continue
+      [ -f "$f" ] || continue
       case "$f" in
         meta.yml|install.sh|VENDORED.md|eco-capability-manifest.yml) continue ;;
-        .git/*|*/.git/*|__pycache__/*|*/__pycache__/*|*.pyc) continue ;;
+        .git/*|*/.git/*|__pycache__/*|*/__pycache__/*|.state/*|*/.state/*|*.pyc) continue ;;
       esac
       printf '%s\n' "$f"
     done | LC_ALL=C sort -u
@@ -180,10 +181,11 @@ schema: eco-manifest/v1
 # eco-capability-manifest.yml — orchestrator-written DATA-plane file (B5). meta-LESS by design so
 # cpp's quiver integrity engine + production-bar (which parse meta.yml only) never see it; it is
 # consistency-excluded (lib/consistency.sh shared_list) so per-sync regen never breaks INV-master.
-# SOLE prune authority for the cpp-side reconciler: it prunes ONLY owned_ids absent from items, and
-# independently refuses to touch any cpp-owned shelf (B6 defense-in-depth). Regenerated as one atomic
-# PR per cpp-sync run, landing AFTER the per-id payload PRs (eventual consistency is safe: the
-# reconciler warns-on-missing-payload, never hard-fails or prunes a not-yet-landed id).
+# Prune input for the cpp-side reconciler: it prunes only orchestrator-marked payloads whose ids are in
+# owned_ids but absent from items, and independently refuses to touch any cpp-owned shelf (B6
+# defense-in-depth). Regenerated as one atomic PR per cpp-sync run, landing AFTER the per-id payload PRs
+# (eventual consistency is safe: the reconciler warns-on-missing-payload, never hard-fails or prunes a
+# not-yet-landed id).
 generated_at: "$1"
 owned_ids: $ownseq
 items:

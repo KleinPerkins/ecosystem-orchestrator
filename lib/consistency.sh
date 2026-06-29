@@ -43,8 +43,9 @@ SRC_MCP_LOCAL="$(orch_expand "$(orch_cfg_get source_mcp_local)")"
 # Resolve a master capability dir by id. Skills live under source_skills_global; mcp masters
 # live flat under source_mcp_local. Returns empty on miss.
 resolve_master() {
-  local id="$1"
-  if [ -d "$SRC_GLOBAL/$id" ]; then printf '%s\n' "$SRC_GLOBAL/$id"; return 0; fi
+  local id="$1" d
+  d="$(orch_resolve_skill_master "$SRC_GLOBAL" "$id" 2>/dev/null || true)"
+  [ -n "$d" ] && { printf '%s\n' "$d"; return 0; }
   if [ -n "$SRC_MCP_LOCAL" ] && [ -d "$SRC_MCP_LOCAL/$id" ]; then printf '%s\n' "$SRC_MCP_LOCAL/$id"; return 0; fi
   return 1
 }
@@ -70,11 +71,11 @@ if [ "$ids_explicit" = 0 ]; then
   # scope:global). Mcp: any subdir of SRC_MCP_LOCAL whose meta.yml declares scope: global.
   disk_globals=""
   if [ -d "$SRC_GLOBAL" ]; then
-    for d in "$SRC_GLOBAL"/*/; do
-      [ -d "$d" ] || continue
-      [ -f "$d/meta.yml" ] || continue
-      disk_globals="$disk_globals $(basename "$d")"
-    done
+    while IFS= read -r meta; do
+      [ -n "$meta" ] || continue
+      id="$(orch_meta_field "$meta" id)"; [ -n "$id" ] || id="$(basename "$(dirname "$meta")")"
+      disk_globals="$disk_globals $id"
+    done < <(orch_each_skill_meta "$SRC_GLOBAL")
   fi
   if [ -n "$SRC_MCP_LOCAL" ] && [ -d "$SRC_MCP_LOCAL" ]; then
     for d in "$SRC_MCP_LOCAL"/*/; do
@@ -92,7 +93,7 @@ if [ "$ids_explicit" = 0 ]; then
   done
   # Direction 2: enrolled in the registry but the master is missing/non-global on disk.
   for e in "${ids[@]}"; do
-    m=""; for d in "$SRC_GLOBAL/$e" "$SRC_MCP_LOCAL/$e"; do [ -d "$d" ] && { m="$d"; break; }; done
+    m="$(resolve_master "$e" || true)"
     if [ -z "$m" ]; then
       printf '  DRIFT  %s: enrolled in registry.yml but no master found under SRC_GLOBAL or SRC_MCP_LOCAL\n' "$e"
       enroll_drift=1

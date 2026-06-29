@@ -29,11 +29,12 @@ governance (`_ops/bin/eco-capability-reconcile.sh`, `_ops/runbooks/eco-capabilit
 | `status --matrix [--json]` | live matrix: registry, lock, digest approval, cpp payload/manifest, open PR, journal, next action |
 | `repair` | run doctor/self-heal, refresh derivable journal fields from observed cpp main, then print the matrix |
 | `reconcile` | **authority** check: committed `.eco-registry.lock` vs `registry.yml` (registry wins) |
+| `lockkit check|write|diff [target...]` | verify or propagate the shared metadata-lock normalizer to capability repos |
 | `doctor` | read-only health: registry presence, enrollment-drift, lock parity, WF2 auto-merge preconditions |
 | `consistency [<id>]` | master ↔ cpp-payload byte-equality (Decision-A compensating control) |
 
 *Rename = `exclude old` → `enroll new` → `cpp-sync` (delete old payload + vendor new).*
-*Registry journal fields are a cache. `.eco-registry.lock` remains enrollment/meta parity only; status and
+*Registry journal fields are a cache. `.eco-registry.lock` remains normalized `meta.yml` parity only; status and
 repair label malformed or stale journal state instead of treating it as authority.*
 
 **WF2 — sync to cpp:**
@@ -46,7 +47,7 @@ repair label malformed or stale journal state instead of treating it as authorit
 | `quarantine <id> -- <reason>` | close in-flight per-id/manifest PRs, mark excluded, delete-propagate, regenerate manifest |
 
 `enabled_kinds` (in `config/relationship.yml`) gates which kinds are cpp-vendorable.
-Preflight = kind ∈ `enabled_kinds` · translated kind ∈ cpp's live enum and kind==shelf(category) · zero-link
+Preflight = WF1 `lockkit check` + `reconcile` · kind ∈ `enabled_kinds` · translated kind ∈ cpp's live enum and kind==shelf(category) · zero-link
 clean · local cpp-integrity GREEN · flavor-2 `approved_digest` matches the current shared-content digest.
 A non-empty block set aborts before any push, so a mixed approved/blocked enrolled set never partially opens
 payload PRs. `cpp-sync --execute` opens async auto-merge PRs; `last_synced_cpp_sha` is refreshed only from
@@ -81,9 +82,12 @@ lib/recovery.sh            rollback and quarantine recovery verbs
 lib/payload.sh             payload generators (shared by vendor + consistency + manifest)
 lib/consistency.sh         master <-> cpp payload byte-equality (Decision-A control)
 lib/reconcile.sh           orchestrator-side registry<->lock authority
+lib/lockkit.sh             shared eco-lock normalizer propagation/check/diff
 config/registry.yml        enrollment SoT (eco-registry/v1)
 config/relationship.yml    THE ld<->cpp relationship (sources, cpp target, enabled_kinds, denylist)
+config/lockkit.yml         eco-lock master/target inventory (no cpp target)
 config/forbidden-*.txt     zero-link token definitions
+templates/eco-lock/        master copy of the self-contained consumer lock writer
 ```
 
 ## Safety

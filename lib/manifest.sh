@@ -42,7 +42,9 @@ TOOL_ID="${OWNED%% *}"
 REL="$QUIVER/tooling/$TOOL_ID/eco-capability-manifest.yml"
 
 resolve_master() {
-  if [ -d "$SRC_GLOBAL/$1" ]; then printf '%s\n' "$SRC_GLOBAL/$1"; return 0; fi
+  local d
+  d="$(orch_resolve_skill_master "$SRC_GLOBAL" "$1" 2>/dev/null || true)"
+  [ -n "$d" ] && { printf '%s\n' "$d"; return 0; }
   if [ -n "$SRC_MCP_LOCAL" ] && [ -d "$SRC_MCP_LOCAL/$1" ]; then printf '%s\n' "$SRC_MCP_LOCAL/$1"; return 0; fi
   return 1
 }
@@ -54,7 +56,7 @@ build_tuples() {
   for id in "$@"; do
     m="$(resolve_master "$id" || true)"; [ -n "$m" ] || { orch_warn "manifest: skipping $id (no master)"; continue; }
     kind="$(awk -F': *' '/^kind:/{print $2; exit}' "$m/meta.yml" 2>/dev/null | tr -d '"' | tr -d "'" | tr -d '[:space:]')"; kind="${kind:-skill}"
-    cat="$(payload_cpp_category_for_kind "$kind")"
+    cat="$(payload_cpp_category_for_kind "$kind")" || { orch_warn "manifest: skipping $id (kind $kind is not cpp-vendorable)"; continue; }
     scope="$(awk -F': *' '/^scope:/{print $2; exit}' "$m/meta.yml" 2>/dev/null | tr -d '"' | tr -d "'" | tr -d '[:space:]')"; scope="${scope:-global}"
     expose="$(payload_expose_norm "$m")"
     printf '%s:%s:%s:%s\n' "$id" "$cat" "$scope" "$expose"

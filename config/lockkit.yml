@@ -1,0 +1,16 @@
+schema: lockkit/v1
+# config/lockkit.yml — propagation inventory for the shared eco-lock normalizer.
+# Lockkit owns only the lock writer and generated lock parity. It does not touch cpp.
+master: templates/eco-lock/eco-lock.sh
+
+targets:
+  - name: skills
+    root: ~/dev/capabilities/skills
+    script: .github/scripts/eco-lock.sh
+    lock: .eco-registry.lock
+    verify: .github/scripts/verify-skills.sh
+  - name: mcp
+    root: ~/dev/capabilities/mcp
+    script: .github/scripts/eco-lock.sh
+    lock: .eco-registry.lock
+    verify: .github/scripts/verify-capabilities.sh

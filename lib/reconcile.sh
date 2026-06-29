@@ -39,11 +39,11 @@ while IFS= read -r id; do
   [ -n "$id" ] || continue
   case "$locked_set" in
     *" $id "*) ;;
-    *) printf '  DIVERGE  %s: enrolled in registry.yml but absent from every committed lock (stale lock; run eco-lock.sh write)\n' "$id"; diverge=1 ;;
+    *) printf '  DIVERGE  %s: enrolled in registry.yml but absent from every committed metadata lock (repair: cd ~/dev && make eco-lockkit-write && make eco-lockkit-check)\n' "$id"; diverge=1 ;;
   esac
 done < <(reg_ids enrolled)
 
-[ "$diverge" = 0 ] && printf '  OK     every enrolled id is integrity-pinned in a committed lock\n'
+[ "$diverge" = 0 ] && printf '  OK     every enrolled id is present in a committed metadata lock\n'
 echo
 if [ "$diverge" = 0 ]; then orch_log "reconcile: OK (registry <-> lock consistent)"; exit 0
-else orch_err "reconcile: DIVERGENCE (registry is authority; regenerate the stale lock)"; exit 1; fi
+else orch_err "reconcile: DIVERGENCE (registry is authority; repair: cd ~/dev && make eco-lockkit-write && make eco-lockkit-check)"; exit 1; fi

@@ -103,7 +103,9 @@ _meta_field() {
 
 _master_dir() {
   local id="$1" d
-  for d in "$SRC_GLOBAL/$id" "$SRC_MCP_LOCAL/$id"; do
+  d="$(orch_resolve_skill_master "$SRC_GLOBAL" "$id" 2>/dev/null || true)"
+  [ -n "$d" ] && { printf '%s\n' "$d"; return 0; }
+  for d in "$SRC_MCP_LOCAL/$id"; do
     [ -f "$d/meta.yml" ] && { printf '%s\n' "$d"; return 0; }
   done
   return 1
@@ -150,6 +152,9 @@ preflight_supply_chain() {
 # cpp-sync entrypoint. Preflight first (no pushes); only a fully-clear preflight proceeds to --execute.
 cmd_cpp_sync() {
   local execute=0; [ "${1:-}" = "--execute" ] && execute=1
+  orch_log "cpp-sync WF1 preflight: lockkit check + registry reconcile"
+  bash "$ORCH_ROOT/lib/lockkit.sh" check || return 1
+  bash "$ORCH_ROOT/lib/reconcile.sh" >/dev/null || return 1
   reg_assert_schema || return 1
   local enabled denylist; enabled=" $(orch_cfg_get enabled_kinds) "; [ "$enabled" = "  " ] && enabled=" skill mcp "
   denylist=" $(orch_cfg_get cpp_sync_denylist) "

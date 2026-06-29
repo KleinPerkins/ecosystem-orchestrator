@@ -9,6 +9,7 @@
 #   repair                 refresh derivable journal state from observed cpp main
 #   rollback <id>          restore a payload from last_synced_cpp_sha via a governed cpp PR
 #   quarantine <id> -- <r> close in-flight PRs, exclude, delete-propagate, regenerate manifest
+#   lockkit check|write|diff [target...]  verify/propagate the shared eco-lock normalizer
 #   vendor <id>        vendor a global capability into cpp via a governed PR (WS-7)
 #   delete <id>        propagate a master delete via a governed cpp deletion PR (WS-7)
 #   cpp-sync           registry-driven sync of enrolled capabilities into cpp (WF2/B4)
@@ -85,7 +86,9 @@ _cli_master_dir() {
   local id="$1" src_global src_mcp d
   src_global="$(orch_expand "$(orch_cfg_get source_skills_global)")"
   src_mcp="$(orch_expand "$(orch_cfg_get source_mcp_local)")"
-  for d in "$src_global/$id" "$src_mcp/$id"; do
+  d="$(orch_resolve_skill_master "$src_global" "$id" 2>/dev/null || true)"
+  [ -n "$d" ] && { printf '%s\n' "$d"; return 0; }
+  for d in "$src_mcp/$id"; do
     [ -f "$d/meta.yml" ] && { printf '%s\n' "$d"; return 0; }
   done
   return 1
@@ -190,11 +193,12 @@ cmd_doctor() {
     sg="$(orch_expand "$(orch_cfg_get source_skills_global)")"
     known_set=" $(reg_ids | tr '\n' ' ') "
     if [ -d "$sg" ]; then
-      for d in "$sg"/*/; do
-        [ -f "$d/meta.yml" ] || continue
-        id="$(basename "$d")"
+      while IFS= read -r meta; do
+        [ -n "$meta" ] || continue
+        d="${meta%/meta.yml}"
+        id="$(orch_meta_field "$meta" id)"; [ -n "$id" ] || id="$(basename "$d")"
         case "$known_set" in *" $id "*) ;; *) echo "  WARN  enrollment-drift: $id scope:global on disk but absent from registry.yml"; ed=1 ;; esac
-      done
+      done < <(orch_each_skill_meta "$sg")
     fi
     [ "$ed" = 0 ] && echo "  PASS  enrollment: registry.yml covers the on-disk scope:global skills"
     # registry<->lock divergence (authority; B2). Fail-open: report, never fail doctor.
@@ -218,7 +222,7 @@ cmd_doctor() {
       false) echo "  WARN  cpp 'Allow auto-merge' is OFF — cpp-sync PRs cannot native-auto-merge (enable in repo settings)" ;;
       *)     echo "  WARN  could not read cpp 'Allow auto-merge' setting (network/permission)" ;;
     esac
-    echo "  INFO  precondition (not queryable): @affirm-cpp-bot must auto-approve orchestrator quiver PRs; CI lock-parity must be a REQUIRED branch-protection check in skills + kp-mcp"
+    echo "  INFO  precondition (not queryable): @affirm-cpp-bot must auto-approve orchestrator quiver PRs; use local lockkit checks + CI lock-parity backstops for skills + kp-mcp unless branch protection becomes available"
   fi
 
   echo; [ "$rc" -eq 0 ] && echo "doctor: OK" || echo "doctor: FAILED"; return "$rc"
@@ -235,6 +239,7 @@ cmd_selfheal() { bash "$ORCH_BIN_DIR/../lib/selfmanage.sh" self-heal "$@"; }
 cmd_install()  { bash "$ORCH_BIN_DIR/../lib/selfmanage.sh" install "$@"; }
 cmd_rollback() { bash "$ORCH_BIN_DIR/../lib/recovery.sh" rollback "$@"; }
 cmd_quarantine() { bash "$ORCH_BIN_DIR/../lib/recovery.sh" quarantine "$@"; }
+cmd_lockkit() { bash "$ORCH_BIN_DIR/../lib/lockkit.sh" "$@"; }
 
 main() {
   local sub="${1:-help}"; shift || true
@@ -257,6 +262,7 @@ main() {
     doctor)     cmd_doctor "$@" ;;
     rollback)   cmd_rollback "$@" ;;
     quarantine) cmd_quarantine "$@" ;;
+    lockkit)    cmd_lockkit "$@" ;;
     -h|--help|help) cmd_help ;;
     *) orch_err "unknown subcommand: $sub"; cmd_help; exit 2 ;;
   esac

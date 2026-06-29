@@ -82,3 +82,10 @@ jobs:
           diff -q "$tmp/dst/VENDORED.md" "$tmp/dst2/VENDORED.md"
           diff -q "$tmp/dst/meta.yml"    "$tmp/dst2/meta.yml"
           echo "payload-smoke: OK"
+
+  lockkit-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: lockkit fixture matrix
+        run: bash tests/test_lockkit.sh
