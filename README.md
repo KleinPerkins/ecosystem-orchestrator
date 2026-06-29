@@ -54,8 +54,7 @@ observed cpp main by `repair`, not by PR creation.
 
 The cpp reconciler is table-driven for the Phase-2 routing set: `skill` directory links to all tools,
 `mcp` is record-only, `sub-agent` links `<id>.md` into agent homes, `rule` links `<id>.mdc` into Cursor
-rules only, and `tool` is record-only. Keep `rule sub-agent tool` out of `enabled_kinds` until the
-cpp-governed reconciler PR is green and merged.
+rules only, and `tool` is record-only. `rule sub-agent tool` are enabled after cpp PR #170 merged green.
 
 **Self-management:** `install` (Cursor `sessionStart` hook + launchd agent), `self-heal`, `vendor` /
 `delete` (the per-id edge primitives `cpp-sync` calls), `zero-link`.

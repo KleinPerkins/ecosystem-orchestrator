@@ -24,11 +24,10 @@ cpp_merge_mode: auto-squash
 # NEVER write these cpp paths (control plane):
 cpp_forbidden_paths: _ops/ .github/
 
-# --- WF2 cpp-sync (Phase 1) ---
+# --- WF2 cpp-sync ---
 # enabled_kinds: the cpp-VENDORABLE kinds. cpp-sync REFUSES any enrolled id whose meta.yml kind is not
-# in this list. Phase 1 = skill + mcp; Phase 2 appends a kind ONLY after a per-kind contract test
-# passes (Decision D5; p2-generalize). Space-separated.
-enabled_kinds: skill mcp
+# in this list. Phase-2 routing kinds were enabled after cpp PR #170 merged green. Space-separated.
+enabled_kinds: skill mcp rule sub-agent tool
 # cpp_sync_denylist: orchestrator-owned cpp ids that delete-propagation must NEVER auto-remove (the
 # data-plane manifest tooling item lives here, B5). Space-separated.
 cpp_sync_denylist: eco-capability-sync
