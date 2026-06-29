@@ -112,16 +112,8 @@ if [ "$ids_explicit" = 0 ]; then
   fi
 fi
 
-# shared_list <dir> — relative paths of the shared content set, sorted (stable across machines).
-# eco-capability-manifest.yml is the orchestrator-written data-plane file (B5): it has no upstream
-# master, so it must be excluded here exactly like VENDORED.md or a per-sync regen would falsely read
-# as an orphan and break INV-master byte-equality.
-shared_list() {
-  ( cd "$1" 2>/dev/null && find . -type f \
-      ! -name meta.yml ! -name install.sh ! -name VENDORED.md ! -name eco-capability-manifest.yml \
-      ! -path '*/.git/*' ! -path '*/__pycache__/*' ! -name '*.pyc' \
-      | sed 's|^\./||' | LC_ALL=C sort )
-}
+# Shared-content traversal lives in payload.sh so consistency, digest, and vendor emit cannot drift.
+shared_list() { payload_shared_list "$1"; }
 
 echo "== orchestrator consistency (master <-> cpp vendored payload) =="
 for id in "${ids[@]}"; do

@@ -103,11 +103,33 @@ payload_expose_norm() {
   printf '%s' "$raw" | tr ' ' '\n' | grep -v '^$' | LC_ALL=C sort -u | paste -sd' ' -
 }
 
+# payload_shared_list <dir> — relative paths of shared payload content, sorted.
+#
+# Git-backed masters use the repo's own ignore rules, so test/build artifacts generated during local
+# verification (for example agent-route's fixture `.state/`) never leak into a cpp payload.
+payload_shared_list() {
+  local dir="$1"
+  [ -d "$dir" ] || return 1
+  (
+    cd "$dir" 2>/dev/null || exit 1
+    if git rev-parse --show-toplevel >/dev/null 2>&1; then
+      git ls-files -c -o --exclude-standard -- .
+    else
+      find . -type f | sed 's|^\./||'
+    fi | while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      case "$f" in
+        meta.yml|install.sh|VENDORED.md|eco-capability-manifest.yml) continue ;;
+        .git/*|*/.git/*|__pycache__/*|*/__pycache__/*|*.pyc) continue ;;
+      esac
+      printf '%s\n' "$f"
+    done | LC_ALL=C sort -u
+  )
+}
+
 # payload_content_digest <dir> — stable SHA-256 fingerprint of a capability's NORMALIZED shared-content
-# set (follow-on f1 / Decision G1). Uses the EXACT same exclusions + sorted relative traversal as
-# consistency.sh's shared_list (meta.yml, install.sh, VENDORED.md, eco-capability-manifest.yml, .git,
-# __pycache__, *.pyc), so the digest of an ld master equals the digest of its freshly-vendored cpp
-# payload — i.e. digest-equality == consistency-equality (G1=shared-only). ANY change to a shared file
+# set (follow-on f1 / Decision G1). Uses payload_shared_list, so digest, consistency, and vendor emit
+# are all based on the same git-ignore-aware payload file set. ANY change to a shared file
 # (content edit, add, remove, OR rename) flips the digest: the hash is taken over a deterministic
 # "<relpath>\n<file-sha256>\n" stream, so a move is caught as well as a content change. Prints the
 # 64-char hex digest; returns 1 (printing nothing) if <dir> is missing. NOTE: for kind:mcp the master
@@ -122,10 +144,7 @@ payload_content_digest() {
     else openssl dgst -sha256 | awk '{print $NF}'; fi
   }
   local stream
-  stream="$( cd "$dir" 2>/dev/null && find . -type f \
-      ! -name meta.yml ! -name install.sh ! -name VENDORED.md ! -name eco-capability-manifest.yml \
-      ! -path '*/.git/*' ! -path '*/__pycache__/*' ! -name '*.pyc' \
-      | sed 's|^\./||' | LC_ALL=C sort | while IFS= read -r f; do printf '%s\n' "$f"; _pcd_sha < "$f"; done )"
+  stream="$( cd "$dir" 2>/dev/null && payload_shared_list "$dir" | while IFS= read -r f; do printf '%s\n' "$f"; _pcd_sha < "$f"; done )"
   printf '%s' "$stream" | _pcd_sha
   unset -f _pcd_sha
 }

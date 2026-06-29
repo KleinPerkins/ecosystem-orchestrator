@@ -138,8 +138,7 @@ build_payload() {
     # Descriptor mode: NO source tar (mcp masters carry forbidden-ld tokens).
     emit_mcp_descriptor "$dst"
   else
-    ( cd "$MASTER" && tar --exclude='./meta.yml' --exclude='./install.sh' \
-          --exclude='./.git' --exclude='./__pycache__' --exclude='*.pyc' -cf - . ) | ( cd "$dst" && tar -xf - )
+    ( cd "$MASTER" && payload_shared_list "$MASTER" | tar -cf - -T - ) | ( cd "$dst" && tar -xf - )
   fi
   payload_emit_vendored_md "$dst" "$ID"
   emit_cpp_meta "$dst"
