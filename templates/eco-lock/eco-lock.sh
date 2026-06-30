@@ -22,6 +22,7 @@ set -o pipefail
 cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
 LOCK=".eco-registry.lock"
 ALLOWED_SHELVES="skills rules sub-agents tools"
+REPAIR_CMD="bash .github/scripts/eco-lock.sh write && git add .eco-registry.lock"
 
 _sha() {
   if command -v sha256sum >/dev/null 2>&1; then sha256sum | awk '{print $1}'
@@ -232,11 +233,11 @@ case "${1:-}" in
     _gen > "$LOCK" || { rm -f "$LOCK"; exit 1; }
     printf 'eco-lock: wrote %s (%s entries)\n' "$LOCK" "$(grep -cvE '^(schema:|#)' "$LOCK" 2>/dev/null || echo 0)" ;;
   check)
-    [ -f "$LOCK" ] || { printf 'eco-lock: FAIL  no %s present (run: eco-lock.sh write)\n' "$LOCK"; exit 1; }
+    [ -f "$LOCK" ] || { printf 'eco-lock: FAIL  no %s present (run: %s)\n' "$LOCK" "$REPAIR_CMD"; exit 1; }
     tmp="$(mktemp)" || { printf 'eco-lock: FAIL  could not create temp file\n' >&2; exit 1; }
     _gen > "$tmp" || { rm -f "$tmp"; exit 1; }
     if cmp -s "$tmp" "$LOCK"; then printf 'eco-lock: OK (%s in parity)\n' "$LOCK"; rm -f "$tmp"
-    else printf 'eco-lock: FAIL  %s out of date — regenerate with: eco-lock.sh write\n' "$LOCK"; diff -u "$LOCK" "$tmp" | sed 's/^/    /'; rm -f "$tmp"; exit 1; fi ;;
+    else printf 'eco-lock: FAIL  %s out of date — regenerate with: %s\n' "$LOCK" "$REPAIR_CMD"; diff -u "$LOCK" "$tmp" | sed 's/^/    /'; rm -f "$tmp"; exit 1; fi ;;
   digest)
     [ -n "${2:-}" ] || { echo "usage: eco-lock.sh digest <meta.yml>"; exit 2; }
     _digest_meta "$2" ;;

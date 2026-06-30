@@ -103,6 +103,7 @@ targets:
 EOF
 
 LK=(env LOCKKIT_CONFIG="$CFG" bash "$ROOT/lib/lockkit.sh")
+REPAIR_CMD="bash .github/scripts/eco-lock.sh write && git add .eco-registry.lock"
 
 "${LK[@]}" write
 commit_all "$SKILLS" "lockkit initial"
@@ -111,6 +112,27 @@ commit_all "$SHELVES" "lockkit initial"
 "${LK[@]}" check
 grep -q 'shelf=rules' "$SHELVES/.eco-registry.lock" || { echo "shelf records missing from lock"; exit 1; }
 grep -q 'source_path=global/rules/rule-one' "$SHELVES/.eco-registry.lock" || { echo "source_path missing from lock"; exit 1; }
+
+REPAIR="$TMP/repair-hint"
+init_repo "$REPAIR"
+emit_meta "$REPAIR/global/skills/repair-me" repair-me skill global
+mkdir -p "$REPAIR/.github/scripts"
+cp "$ROOT/templates/eco-lock/eco-lock.sh" "$REPAIR/.github/scripts/eco-lock.sh"
+chmod +x "$REPAIR/.github/scripts/eco-lock.sh"
+( cd "$REPAIR" && bash .github/scripts/eco-lock.sh write )
+commit_all "$REPAIR" "repair hint initial"
+printf 'expose: cursor\n' >> "$REPAIR/global/skills/repair-me/meta.yml"
+if ( cd "$REPAIR" && bash .github/scripts/eco-lock.sh check ) >/tmp/lockkit-repair-hint.$$ 2>&1; then
+  echo "eco-lock check should fail on stale lock"
+  exit 1
+fi
+grep -Fq "$REPAIR_CMD" /tmp/lockkit-repair-hint.$$ || { echo "stale lock repair hint missing full command"; exit 1; }
+rm -f "$REPAIR/.eco-registry.lock"
+if ( cd "$REPAIR" && bash .github/scripts/eco-lock.sh check ) >/tmp/lockkit-missing-lock.$$ 2>&1; then
+  echo "eco-lock check should fail when lock is missing"
+  exit 1
+fi
+grep -Fq "$REPAIR_CMD" /tmp/lockkit-missing-lock.$$ || { echo "missing lock repair hint missing full command"; exit 1; }
 
 before="$(git -C "$SKILLS" rev-parse HEAD)"
 "${LK[@]}" write skills
