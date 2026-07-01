@@ -20,7 +20,7 @@ done
 SRC_GLOBAL="$(orch_expand "$(orch_cfg_get source_skills_global)")"
 SRC_MCP_LOCAL="$(orch_expand "$(orch_cfg_get source_mcp_local)")"
 SRC_SKILLS_LOCAL="$(orch_expand "$(orch_cfg_get source_skills_local)")"
-CPP="$(orch_expand "$(orch_cfg_get ld_cpp_worktree)")"
+CPP="$(orch_expand "${ORCH_STATUS_CPP_DIR:-$(orch_cfg_get ld_cpp_worktree)}")"
 QUIVER="$(orch_cfg_get cpp_quiver_path)"; QUIVER="${QUIVER:-quiver}"
 OWNED="$(orch_cfg_get cpp_sync_denylist)"; OWNED="${OWNED:-eco-capability-sync}"
 TOOL_ID="${OWNED%% *}"

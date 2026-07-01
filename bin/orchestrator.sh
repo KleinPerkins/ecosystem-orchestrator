@@ -135,8 +135,12 @@ cmd_repair() {
 
   cpp="$(orch_expand "$(orch_cfg_get ld_cpp_worktree)")"
   quiver="$(orch_cfg_get cpp_quiver_path)"; quiver="${quiver:-quiver}"
-  [ -d "$cpp/.git" ] || { orch_err "repair: cpp worktree unavailable: $cpp"; return 1; }
   ref="$default_branch"
+  if [ -d "$work/.git" ] && git -C "$work" rev-parse --verify "origin/$default_branch^{commit}" >/dev/null 2>&1; then
+    cpp="$work"
+    ref="origin/$default_branch"
+  fi
+  [ -d "$cpp/.git" ] || { orch_err "repair: cpp worktree unavailable: $cpp"; return 1; }
   git -C "$cpp" rev-parse --verify "$ref^{commit}" >/dev/null 2>&1 || ref="HEAD"
   sha="$(git -C "$cpp" rev-parse "$ref" 2>/dev/null || true)"
   [ -n "$sha" ] || { orch_err "repair: could not resolve observed cpp main/HEAD"; return 1; }
@@ -158,7 +162,7 @@ cmd_repair() {
   done < <(reg_ids)
 
   orch_log "repair: status matrix"
-  bash "$ORCH_BIN_DIR/../lib/status.sh" --matrix
+  ORCH_STATUS_CPP_DIR="$cpp" bash "$ORCH_BIN_DIR/../lib/status.sh" --matrix
 }
 
 cmd_zero_link() {
