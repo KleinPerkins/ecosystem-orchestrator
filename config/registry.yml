@@ -32,120 +32,120 @@ items:
     reason: "first end-to-end skill consumer (flavor-2 snapshot)"
     approved_digest: "2d5315071759bfee3f8ee18d958daad3fd28c51e83f372a8bc83883b13752ec3"
     content_digest: "2d5315071759bfee3f8ee18d958daad3fd28c51e83f372a8bc83883b13752ec3"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: google-kit
     state: enrolled
     reason: "first kind:mcp consumer (source-free discoverability descriptor)"
     content_digest: "dfb9035699957624e34418ea6b8747ffe899fbabc1761abb3590da12d9b7171b"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: agent-route
     state: enrolled
     reason: "global cursor-only workspace router for cpp PM discovery"
     content_digest: "1f0bfcd4ea6fb9d5a7dc8c994e533d61b3261b0bd08073bb75bcefcd58b1e1e8"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: algorithmic-art
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "47be6b955463043608007c5789340025d5ecec9c5ae926fc3ae4dd40a066c225"
     content_digest: "47be6b955463043608007c5789340025d5ecec9c5ae926fc3ae4dd40a066c225"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: canvas-design
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "75d5b5d78c783bd6c3be33e8c2530fc623fdf9d8c80982c6b1315dac9c5e247a"
     content_digest: "75d5b5d78c783bd6c3be33e8c2530fc623fdf9d8c80982c6b1315dac9c5e247a"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: claude-api
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "b9aae3dd75eafef1007d9ed48bd580735562e907eed40de6597f42b338537646"
     content_digest: "b9aae3dd75eafef1007d9ed48bd580735562e907eed40de6597f42b338537646"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: doc-coauthoring
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "46fb1e38be330db693476b5755879e079b4ce6289536ffaa1f4dfeb5ddce5067"
     content_digest: "46fb1e38be330db693476b5755879e079b4ce6289536ffaa1f4dfeb5ddce5067"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: frontend-design
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "54fe33a7928af02a2568622d53a953045157a8c98f16e63e53234d708057924a"
     content_digest: "54fe33a7928af02a2568622d53a953045157a8c98f16e63e53234d708057924a"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: internal-comms
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "777bf0e3305f61972cca7f813359712dd945cbd994e2474acaf21df770a272bc"
     content_digest: "777bf0e3305f61972cca7f813359712dd945cbd994e2474acaf21df770a272bc"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: mcp-builder
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "2f397b9c2c5b13e15b79965e61e308812162f751710326b0ff408b19e9f40644"
     content_digest: "2f397b9c2c5b13e15b79965e61e308812162f751710326b0ff408b19e9f40644"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: pdf
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "259f217326d4d5c372988e185020fef0403e5a016cdc4533e1cf815ded22895b"
     content_digest: "259f217326d4d5c372988e185020fef0403e5a016cdc4533e1cf815ded22895b"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: skill-creator
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "9403876091fef2f9d6b2337b28ee4cb8a3dccfe5e14cb1319e63235c96f3be35"
     content_digest: "9403876091fef2f9d6b2337b28ee4cb8a3dccfe5e14cb1319e63235c96f3be35"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: slack-gif-creator
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "41c605e28bd6e67f9fdda1d13ca5a705b75ff9877c75bdc61c57ba9cad2d7ea9"
     content_digest: "41c605e28bd6e67f9fdda1d13ca5a705b75ff9877c75bdc61c57ba9cad2d7ea9"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: theme-factory
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "231e72137bd06358644a6229328c682f032bc2d55e663b04396e311fd8b6cca3"
     content_digest: "231e72137bd06358644a6229328c682f032bc2d55e663b04396e311fd8b6cca3"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: web-artifacts-builder
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "57f51ec7fc2f881fa533f4c49e51c331e187e385cd8b0009d4c529201cb9edfa"
     content_digest: "57f51ec7fc2f881fa533f4c49e51c331e187e385cd8b0009d4c529201cb9edfa"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: webapp-testing
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "c5d5cc8cb240b1415e6b69f6bfd3968dfdb40db6c911191eef823acf912c47ea"
     content_digest: "c5d5cc8cb240b1415e6b69f6bfd3968dfdb40db6c911191eef823acf912c47ea"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: capability
     state: enrolled
     reason: "PM capability playbook (flavor-1 homegrown global skill)"
     content_digest: "0c7f3f2fd6407dce94c0fd80d4f0b0cbcb21bdeb8ee965d28be0c0ef7b40a3e2"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
   - id: local-jobs
     state: enrolled
     reason: "globalized unified launchd job framework (generic engine)"
-    content_digest: "d4b02516d70e03ec697861602030a1322c71c424ee1a53392199c71f209b08e9"
-    last_synced_cpp_sha: "a433bb0c323adf450eaa049fb92df6777cacb904"
-    last_synced_at: "2026-07-01T08:35:24Z"
+    content_digest: "0a666beec66eaa84988d250e407fe5c7411381194f5fdbf30dffcb2b8f6689ed"
+    last_synced_cpp_sha: "8852ac79b38a4d8366b914ecd07c3212fac6f36e"
+    last_synced_at: "2026-07-01T09:15:49Z"
