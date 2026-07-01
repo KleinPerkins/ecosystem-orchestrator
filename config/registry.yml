@@ -143,3 +143,6 @@ items:
     content_digest: "0c7f3f2fd6407dce94c0fd80d4f0b0cbcb21bdeb8ee965d28be0c0ef7b40a3e2"
     last_synced_cpp_sha: "6f6074c7b90fd3f568bd2b6a11f6e4fa101cb236"
     last_synced_at: "2026-06-29T18:53:31Z"
+  - id: local-jobs
+    state: enrolled
+    reason: "globalized unified launchd job framework (generic engine)"
