@@ -121,7 +121,8 @@ git -C "$WORK" checkout -qB "$BRANCH"
 
 mkdir -p "$(dirname "$WORK/$REL")"
 EXISTING=""; [ -f "$WORK/$REL" ] && EXISTING="$(cat "$WORK/$REL")"
-# shellcheck disable=SC2046 — intentional word-split of the newline tuple list into positional args.
+# shellcheck disable=SC2046
+# Intentional word-split of the newline tuple list into positional args.
 IFS=$'\n' read -r -d '' -a _tarr < <(printf '%s\0' "$TUPLES")
 payload_emit_manifest "$WORK/$REL" "$OWNED" "$EXISTING" "${_tarr[@]+"${_tarr[@]}"}"
 

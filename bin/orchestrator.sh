@@ -88,9 +88,8 @@ _cli_master_dir() {
   src_mcp="$(orch_expand "$(orch_cfg_get source_mcp_local)")"
   d="$(orch_resolve_skill_master "$src_global" "$id" 2>/dev/null || true)"
   [ -n "$d" ] && { printf '%s\n' "$d"; return 0; }
-  for d in "$src_mcp/$id"; do
-    [ -f "$d/meta.yml" ] && { printf '%s\n' "$d"; return 0; }
-  done
+  d="$src_mcp/$id"
+  [ -f "$d/meta.yml" ] && { printf '%s\n' "$d"; return 0; }
   return 1
 }
 

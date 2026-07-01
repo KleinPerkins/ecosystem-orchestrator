@@ -35,9 +35,8 @@ master_dir() {
   local id="$1" d
   d="$(orch_resolve_skill_master "$SRC_GLOBAL" "$id" 2>/dev/null || true)"
   [ -n "$d" ] && { printf '%s\n' "$d"; return 0; }
-  for d in "$SRC_MCP_LOCAL/$id"; do
-    [ -f "$d/meta.yml" ] && { printf '%s\n' "$d"; return 0; }
-  done
+  d="$SRC_MCP_LOCAL/$id"
+  [ -f "$d/meta.yml" ] && { printf '%s\n' "$d"; return 0; }
   return 1
 }
 
