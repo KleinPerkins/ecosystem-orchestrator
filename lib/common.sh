@@ -4,7 +4,7 @@
 
 ORCH_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"     # .../lib
 ORCH_ROOT="$(cd "$ORCH_LIB_DIR/.." && pwd)"                          # repo root
-ORCH_CONFIG="$ORCH_ROOT/config/relationship.yml"
+ORCH_CONFIG="${ORCH_CONFIG:-$ORCH_ROOT/config/relationship.yml}"
 ORCH_FORBIDDEN_DIR="$ORCH_ROOT/config"
 
 orch_log()  { printf '[orch] %s\n' "$*" >&2; }

@@ -32,6 +32,14 @@ enabled_kinds: skill mcp rule sub-agent tool
 # data-plane manifest tooling item lives here, B5). Space-separated.
 cpp_sync_denylist: eco-capability-sync
 
+# --- Downstream personal consumer (chaos-labs), shim-sync only ---
+# This target is deliberately NOT cpp's full package model. The orchestrator can write a tiny
+# google-kit pointer/env shim here on explicit `orchestrator chaos-shim-sync --execute`; this config
+# carries no personal doc-style profile bytes.
+chaos_labs_root: ~/dev/personal/chaos-labs
+chaos_labs_shim_path: scripts/setup/google-kit-shim.sh
+chaos_labs_env_path: config/google-kit.env.example
+
 # --- LD's local cpp working tree (Decision A: symlink-dedup ABANDONED; consistency-check target) ---
 # Symlink-dedup is retired — unsafe (routine cpp git ops write THROUGH the link into the global SOT)
 # and semantically wrong (master != vendored payload). cpp keeps the REAL vendored copy; integrity is

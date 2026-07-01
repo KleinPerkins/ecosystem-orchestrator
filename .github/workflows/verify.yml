@@ -89,3 +89,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: lockkit fixture matrix
         run: bash tests/test_lockkit.sh
+
+  google-kit-suite-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: google-kit suite payload fixture
+        run: bash tests/test_google_kit_payload.sh
+      - name: chaos shim fixture
+        run: bash tests/test_chaos_shim.sh

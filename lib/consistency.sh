@@ -133,44 +133,36 @@ for id in "${ids[@]}"; do
   if [ -L "$target" ]; then printf '  DRIFT  %s: vendored path is a LEGACY symlink — un-arm with dedup.sh --reverse\n' "$id"; drift=1; continue; fi
 
   # Kind-aware comparison. For `kind: mcp` masters the orchestrator vendors a SOURCE-FREE,
-  # ld-agnostic discoverability descriptor (README.md + VENDORED.md + meta.yml only). Comparing
-  # the master's source tree would always flag every source file as "missing in cpp payload",
-  # so for mcp we (1) assert descriptor shape (required files present; no unexpected source),
-  # then (2) REGENERATE the descriptor into a tmpdir using the same generators vendor.sh uses
-  # and BYTE-COMPARE README.md + meta.yml against the cpp payload. This catches template drift
-  # AND any hand-edit on the cpp side that vendor would clobber on the next sync — symmetric
-  # with the skill path below. VENDORED.md is intentionally generic so stays shape-only.
+  # ld-agnostic descriptor/package instead of source. Comparing the master's source tree would
+  # always flag every source file as missing, so regenerate the exact mcp payload into a tmpdir
+  # and byte-compare the payload file set. google-kit uses this same path for its suite overlay.
   kind="$(awk -F': *' '/^kind:/{print $2; exit}' "$master/meta.yml" 2>/dev/null)"
   if [ "$kind" = "mcp" ]; then
     item_drift=0
-    for f in README.md VENDORED.md meta.yml; do
-      [ -f "$target/$f" ] || { printf '  DRIFT  %s: missing in cpp mcp descriptor: %s\n' "$id" "$f"; item_drift=1; }
-    done
+    regen="$(mktemp -d)"
+    payload_emit_mcp_descriptor "$regen" "$id"
+    payload_emit_vendored_md "$regen" "$id"
+    base_meta=""; [ -f "$target/meta.yml" ] && base_meta="$(cat "$target/meta.yml")"
+    payload_emit_cpp_meta "$regen" "$id" "$master" "$base_meta"
+
+    expected="$(cd "$regen" 2>/dev/null && find . -type f ! -path '*/.git/*' | sed 's|^\./||' | LC_ALL=C sort)"
+    actual="$(cd "$target" 2>/dev/null && find . -type f ! -path '*/.git/*' | sed 's|^\./||' | LC_ALL=C sort)"
     while IFS= read -r f; do
       [ -n "$f" ] || continue
-      case "$f" in
-        README.md|VENDORED.md|meta.yml) ;;
-        *) printf '  DRIFT  %s: unexpected source file in cpp mcp descriptor: %s\n' "$id" "$f"; item_drift=1 ;;
-      esac
-    done <<EOF
-$(cd "$target" 2>/dev/null && find . -type f ! -path '*/.git/*' | sed 's|^\./||' | LC_ALL=C sort)
-EOF
-    # Regen-and-cmp: regenerate the descriptor with the SAME generators as vendor.sh into a
-    # tmpdir, seeded with the existing cpp meta so `created` is preserved (idempotent).
-    if [ "$item_drift" = 0 ]; then
-      regen="$(mktemp -d)"
-      payload_emit_mcp_descriptor "$regen" "$id"
-      base_meta=""; [ -f "$target/meta.yml" ] && base_meta="$(cat "$target/meta.yml")"
-      payload_emit_cpp_meta "$regen" "$id" "$master" "$base_meta"
-      for f in README.md meta.yml; do
-        if ! cmp -s "$regen/$f" "$target/$f"; then
-          printf '  DRIFT  %s: cpp mcp %s differs from regenerated payload (template drift or hand-edit)\n' "$id" "$f"
-          item_drift=1
-        fi
-      done
-      rm -rf "$regen"
-    fi
-    [ "$item_drift" = 0 ] && printf '  OK     %s: cpp mcp descriptor in sync (shape + README/meta byte-equal to regen)\n' "$id" || drift=1
+      if [ ! -f "$target/$f" ]; then
+        printf '  DRIFT  %s: missing in cpp mcp payload: %s\n' "$id" "$f"; item_drift=1
+      elif ! cmp -s "$regen/$f" "$target/$f"; then
+        printf '  DRIFT  %s: cpp mcp %s differs from regenerated payload\n' "$id" "$f"; item_drift=1
+      fi
+    done <<< "$expected"
+    while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      if ! printf '%s\n' "$expected" | awk -v f="$f" '$0==f{found=1} END{exit found?0:1}'; then
+        printf '  DRIFT  %s: unexpected source file in cpp mcp payload: %s\n' "$id" "$f"; item_drift=1
+      fi
+    done <<< "$actual"
+    rm -rf "$regen"
+    [ "$item_drift" = 0 ] && printf '  OK     %s: cpp mcp payload in sync (byte-equal to regenerated source-free package)\n' "$id" || drift=1
     continue
   fi
 

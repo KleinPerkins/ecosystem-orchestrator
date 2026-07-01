@@ -3,7 +3,8 @@
 Private cross-workspace **ecosystem orchestrator** (reorg-v2 + the capability-lifecycle paradigm).
 This is the **single place** the relationship between the personal/home workspace (ld) and the governed
 downstream consumer (cpp = `Affirm/card-platform-product`) is defined (**INV-zero-link**): no ld artifact
-and no cpp artifact names the other side; only this repo does.
+and no cpp artifact names the other side; only this repo does. It also owns narrow per-consumer shims
+such as the google-kit pointer for chaos-labs, so those routes are configured here rather than by hand.
 
 Two contained workflows with a hard boundary — a registration change never auto-triggers a sync:
 
@@ -45,6 +46,7 @@ repair label malformed or stale journal state instead of treating it as authorit
 | `cpp-sync --execute` | vendor the ok set → delete-propagate de-enrolled → ONE atomic manifest PR (auto-merge on green) |
 | `rollback [--execute] <id>` | restore `quiver/<cat>/<id>` from `last_synced_cpp_sha` through a governed data-plane PR |
 | `quarantine <id> -- <reason>` | close in-flight per-id/manifest PRs, mark excluded, delete-propagate, regenerate manifest |
+| `chaos-shim-sync [--execute]` | write/repair the configured chaos-labs google-kit pointer/env shim; dry-run by default |
 
 `enabled_kinds` (in `config/relationship.yml`) gates which kinds are cpp-vendorable.
 Preflight = WF1 `lockkit check` + `reconcile` · kind ∈ `enabled_kinds` · translated kind ∈ cpp's live enum and kind==shelf(category) · zero-link
@@ -54,8 +56,11 @@ payload PRs. `cpp-sync --execute` opens async auto-merge PRs; `last_synced_cpp_s
 observed cpp main by `repair`, not by PR creation.
 
 The cpp reconciler is table-driven for the Phase-2 routing set: `skill` directory links to all tools,
-`mcp` is record-only, `sub-agent` links `<id>.md` into agent homes, `rule` links `<id>.mdc` into Cursor
+`mcp` is record-first, `sub-agent` links `<id>.md` into agent homes, `rule` links `<id>.mdc` into Cursor
 rules only, and `tool` is record-only. `rule sub-agent tool` are enabled after cpp PR #170 merged green.
+For `google-kit`, the mcp payload is still source-free but now includes a small suite overlay:
+`SUITE.md`, a blank document-style starter template, a local bootstrap script, and guard-pattern docs.
+It deliberately excludes personal profile JSON; real `doc-styles/` remain local config.
 
 **Self-management:** `install` (Cursor `sessionStart` hook + launchd agent), `self-heal`, `vendor` /
 `delete` (the per-id edge primitives `cpp-sync` calls), `zero-link`.
@@ -68,6 +73,7 @@ rules only, and `tool` is record-only. `rule sub-agent tool` are enabled after c
 | Add/remove a global capability to/from the cpp sync set | `orchestrator enroll\|exclude\|demote <id>` | `registry.yml` only (no delivery) |
 | Push enrolled capabilities into cpp | `orchestrator cpp-sync --execute` | ld → cpp governed PRs |
 | A PM sets up / refreshes their cpp clone | `/cpp-bootstrap` or `/cpp-sync` (in cpp) | the PM's laptop (cpp-owned reconciler) |
+| Repair chaos-labs google-kit discovery | `orchestrator chaos-shim-sync --execute` | configured chaos-labs shim files only |
 
 ## Layout
 
@@ -79,6 +85,7 @@ lib/vendor.sh              the single sanctioned ld->cpp edge writer (per-id pay
 lib/manifest.sh            the one atomic data-plane manifest PR (eco-manifest/v1)
 lib/status.sh              status matrix and JSON output
 lib/recovery.sh            rollback and quarantine recovery verbs
+lib/chaos_shim.sh          google-kit pointer/env shim delivery for chaos-labs
 lib/payload.sh             payload generators (shared by vendor + consistency + manifest)
 lib/consistency.sh         master <-> cpp payload byte-equality (Decision-A control)
 lib/reconcile.sh           orchestrator-side registry<->lock authority

@@ -12,7 +12,8 @@
 #   payload_cpp_category_for_kind <kp_kind>
 #       Map a kp kind onto a cpp quiver category dir name (skills, mcp, workflows, ...).
 #   payload_emit_mcp_descriptor <dst_dir> <id>
-#       Write the ld-agnostic discoverability README.md for a kind:mcp capability.
+#       Write the ld-agnostic discoverability README.md for a kind:mcp capability. For google-kit,
+#       also writes the source-free suite bootstrap payload (blank template + installer/guard docs).
 #   payload_emit_vendored_md <dst_dir> <id>
 #       Write the generic VENDORED.md footer (capability-kind-agnostic).
 #   payload_emit_cpp_meta <dst_dir> <id> <master_dir> <existing_cpp_meta_text>
@@ -49,6 +50,120 @@ payload_cpp_category_for_kind() {
     tool|tooling)       printf 'tooling\n' ;;
     *) printf 'payload_cpp_category_for_kind: kind %s is not vendorable to cpp (cpp shelves: skills|workflows|sub-agents|mcp|tooling|rules; asset|doc|data are kp-only/retired)\n' "$1" >&2; return 1 ;;
   esac
+}
+
+# payload_is_personal_doc_styles_path <relpath> — true for live/local doc-styles payloads that must
+# never be vendored downstream. Generic starter templates are allowed when they live outside any
+# `doc-styles/` runtime directory.
+payload_is_personal_doc_styles_path() {
+  case "$1" in
+    doc-styles|doc-styles/*|*/doc-styles|*/doc-styles/*) return 0 ;;
+    profiles/laurence|profiles/laurence/*|*/profiles/laurence|*/profiles/laurence/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+payload_emit_google_kit_blank_style_profile() {
+  cat <<'EOF'
+{
+  "schema": 1,
+  "name": "blank-starter",
+  "description": "Generic blank starter profile. Replace locally with operator-specific styles.",
+  "named_styles": {},
+  "document_style": {
+    "documentFormat": {
+      "documentMode": "PAGES"
+    }
+  },
+  "template_doc_id": null,
+  "source_doc_id": null
+}
+EOF
+}
+
+payload_emit_google_kit_suite() {
+  local dst="$1"
+  mkdir -p "$dst/templates" "$dst/scripts" "$dst/guards"
+
+  cat > "$dst/SUITE.md" <<'EOF'
+# google-kit suite bootstrap
+
+This source-free package extends the MCP descriptor with the runnable bootstrap shape for a
+future clone: MCP registration, CLI/bootstrap repair, utilities, and a generic document-style
+starter template. It intentionally carries no operator-specific profile JSON.
+
+## Planes
+
+- Capability plane: google-kit code, operations, installer, repair paths, guard patterns, and the
+  blank starter template.
+- Personal-config plane: each operator's real style profiles under their local google-kit config
+  directory. These files are created or repaired locally and must stay out of every repository.
+
+## Local install contract
+
+Run `scripts/install-google-kit-suite.sh` from this directory. It uses an explicit
+`GOOGLE_KIT_CONFIG_DIR` when provided, otherwise a stable user-level config directory, then creates
+only `doc-styles/blank-starter.json` from the generic template if no starter exists.
+
+Operator-specific profile JSON is deliberately absent from this package.
+EOF
+
+  payload_emit_google_kit_blank_style_profile > "$dst/templates/blank-style-profile.json"
+
+  cat > "$dst/guards/doc-styles-deny-patterns.txt" <<'EOF'
+# Defense-in-depth patterns for downstream commit/data guards.
+**/doc-styles/**
+"named_styles"
+"document_style"
+"template_doc_id"
+"source_doc_id"
+EOF
+
+  cat > "$dst/scripts/install-google-kit-suite.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+suite_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
+config_dir="${GOOGLE_KIT_CONFIG_DIR:-$HOME/Library/Application Support/google-kit}"
+styles_dir="$config_dir/doc-styles"
+starter="$styles_dir/blank-starter.json"
+
+ensure_gitignored() {
+  local path="$1" parent repo rel
+  parent="$(dirname "$path")"
+  mkdir -p "$parent"
+  repo="$(git -C "$parent" rev-parse --show-toplevel 2>/dev/null || true)"
+  [ -n "$repo" ] || return 0
+  rel="${path#$repo/}"
+  if git -C "$repo" check-ignore -q -- "$rel"; then
+    return 0
+  fi
+  printf 'google-kit: refusing to write %s because it is inside a git worktree and is not ignored\n' "$path" >&2
+  printf 'google-kit: add a narrow ignore rule for **/doc-styles/**, then rerun this installer\n' >&2
+  return 1
+}
+
+mkdir -p "$styles_dir"
+ensure_gitignored "$starter"
+if [ ! -f "$starter" ]; then
+  cp "$suite_dir/templates/blank-style-profile.json" "$starter"
+  chmod 600 "$starter" 2>/dev/null || true
+  printf 'google-kit: wrote blank starter profile: %s\n' "$starter"
+else
+  printf 'google-kit: starter profile already present: %s\n' "$starter"
+fi
+
+if command -v google-kit >/dev/null 2>&1; then
+  GOOGLE_KIT_CONFIG_DIR="$config_dir" google-kit bootstrap || {
+    printf 'google-kit: bootstrap command returned non-zero; profile starter remains installed\n' >&2
+  }
+else
+  printf 'google-kit: CLI not found on PATH; install/repair the global google-kit CLI, then rerun bootstrap\n' >&2
+fi
+
+printf 'GOOGLE_KIT_CONFIG_DIR=%s\n' "$config_dir"
+EOF
+  chmod +x "$dst/scripts/install-google-kit-suite.sh"
 }
 
 # Emit the ld-agnostic discoverability descriptor for a `kind: mcp` capability. The MCP server's
@@ -90,6 +205,9 @@ stored in any repo.
 This descriptor is regenerated by the ecosystem orchestrator. Local
 edits are overwritten on the next sync.
 EOF
+  if [ "$id" = "google-kit" ]; then
+    payload_emit_google_kit_suite "$dst"
+  fi
 }
 
 # payload_expose_norm <master_dir> — print the master's `expose:` as a normalized, sorted,
@@ -123,6 +241,7 @@ payload_shared_list() {
         meta.yml|install.sh|VENDORED.md|eco-capability-manifest.yml) continue ;;
         .git/*|*/.git/*|__pycache__/*|*/__pycache__/*|.state/*|*/.state/*|*.pyc) continue ;;
       esac
+      if payload_is_personal_doc_styles_path "$f"; then continue; fi
       printf '%s\n' "$f"
     done | LC_ALL=C sort -u
   )

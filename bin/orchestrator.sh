@@ -13,6 +13,7 @@
 #   vendor <id>        vendor a global capability into cpp via a governed PR (WS-7)
 #   delete <id>        propagate a master delete via a governed cpp deletion PR (WS-7)
 #   cpp-sync           registry-driven sync of enrolled capabilities into cpp (WF2/B4)
+#   chaos-shim-sync    DRY-RUN/execute google-kit shim delivery to the configured chaos-labs target
 #   reconcile          AUTHORITY: registry.yml <-> committed .eco-registry.lock (registry wins; B2)
 #   consistency [id..] verify master<->cpp vendored-payload content is in sync (Decision A control)
 #   dedup  <id>        DEPRECATED (Decision A): symlink-dedup abandoned; --reverse un-arms a legacy link
@@ -238,6 +239,7 @@ cmd_consistency() { bash "$ORCH_BIN_DIR/../lib/consistency.sh" "$@"; }
 cmd_reconcile() { bash "$ORCH_BIN_DIR/../lib/reconcile.sh" "$@"; }
 cmd_dedup()    { bash "$ORCH_BIN_DIR/../lib/dedup.sh" "$@"; }
 cmd_cpp_sync() { bash "$ORCH_BIN_DIR/../lib/selfmanage.sh" cpp-sync "$@"; }
+cmd_chaos_shim_sync() { bash "$ORCH_BIN_DIR/../lib/chaos_shim.sh" "$@"; }
 cmd_selfheal() { bash "$ORCH_BIN_DIR/../lib/selfmanage.sh" self-heal "$@"; }
 cmd_install()  { bash "$ORCH_BIN_DIR/../lib/selfmanage.sh" install "$@"; }
 cmd_rollback() { bash "$ORCH_BIN_DIR/../lib/recovery.sh" rollback "$@"; }
@@ -256,6 +258,7 @@ main() {
     vendor)     cmd_vendor "$@" ;;
     delete)     cmd_delete "$@" ;;
     cpp-sync)   cmd_cpp_sync "$@" ;;
+    chaos-shim-sync) cmd_chaos_shim_sync "$@" ;;
     reconcile)  cmd_reconcile "$@" ;;
     consistency) cmd_consistency "$@" ;;
     dedup)      cmd_dedup "$@" ;;
