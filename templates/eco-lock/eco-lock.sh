@@ -15,13 +15,13 @@
 #   eco-lock.sh digest <meta.yml>  print one capability's normalized sha256 (debug)
 #
 # Layout auto-detect: a global/+local/ hub (KleinPerkins/skills) requires
-# global|local/{skills,rules,sub-agents,tools}/<id>. A flat repo-root (kp-mcp)
+# global|local/{skills,rules,sub-agents,tools,plugins}/<id>. A flat repo-root (kp-mcp)
 # scans */meta.yml that declare schema: kp-capability/v1.
 set -uo pipefail
 set -o pipefail
 cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
 LOCK=".eco-registry.lock"
-ALLOWED_SHELVES="skills rules sub-agents tools"
+ALLOWED_SHELVES="skills rules sub-agents tools plugins"
 REPAIR_CMD="bash .github/scripts/eco-lock.sh write && git add .eco-registry.lock"
 
 _sha() {
@@ -50,6 +50,7 @@ _kind_shelf() {
     rule)      printf 'rules\n' ;;
     sub-agent) printf 'sub-agents\n' ;;
     tool)      printf 'tools\n' ;;
+    plugin)    printf 'plugins\n' ;;
     mcp)       printf 'mcp\n' ;;
     workflow)  printf 'workflows\n' ;;
     asset|doc) printf 'tools\n' ;;
@@ -127,12 +128,13 @@ _source_shelf() {
 # _digest_meta <meta.yml> — sha256 over the canonical capability-contract fields. expose tokens are
 # sorted so a pure reordering is not spurious drift.
 _digest_meta() {
-  local m="$1" expose shelf source_path shape sync_policy
+  local m="$1" expose shelf source_path shape sync_policy descriptor_ref
   expose="$(_expose_norm "$m")"
   shelf="$(_source_shelf "$m")"
   source_path="$m"; source_path="${source_path%/meta.yml}"
   shape="$(_field shape "$m")"
   sync_policy="$(_field sync_policy "$m")"
+  descriptor_ref="$(_field descriptor_ref "$m")"
   {
     printf 'id=%s\n'                "$(_field id "$m")"
     printf 'kind=%s\n'              "$(_field kind "$m")"
@@ -147,6 +149,7 @@ _digest_meta() {
     printf 'expose=%s\n'            "$expose"
     printf 'provenance_source=%s\n' "$(_field provenance_source "$m")"
     printf 'provenance_ref=%s\n'    "$(_field provenance_ref "$m")"
+    [ -n "$descriptor_ref" ] && printf 'descriptor_ref=%s\n' "$descriptor_ref"
   } | _sha
 }
 
