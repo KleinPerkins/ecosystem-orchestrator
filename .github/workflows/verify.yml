@@ -98,3 +98,10 @@ jobs:
         run: bash tests/test_google_kit_payload.sh
       - name: chaos shim fixture
         run: bash tests/test_chaos_shim.sh
+
+  tool-descriptor-fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: kind:tool discoverability descriptor fixture (design-only, Part 4)
+        run: bash tests/test_tool_descriptor_payload.sh

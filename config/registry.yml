@@ -151,4 +151,4 @@ items:
     last_synced_at: "2026-07-01T10:30:39Z"
   - id: awa
     state: enrolled
-    reason: "global AWA release-pointer tool (flavor-2 shape:release-descriptor -> KleinPerkins/awa v1.0.0); cpp delivery stays discoverability-only per D2, no cpp-sync yet"
+    reason: "global AWA release-pointer tool (flavor-2 shape:release-descriptor -> KleinPerkins/awa v1.0.1 @ 11e962f, Phase 1 standalone-system-package merged to main); cpp delivery stays discoverability-only per D2, no cpp-sync yet"
