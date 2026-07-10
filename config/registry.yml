@@ -152,3 +152,15 @@ items:
   - id: awa
     state: excluded
     reason: "AWA remains a standalone system package; cpp delivery is deferred, so it must not participate in cpp-sync"
+  - id: swarm
+    state: enrolled
+    reason: "enroll operator-facing global review swarm for governed cpp rollout"
+  - id: swarm-probe
+    state: enrolled
+    reason: "enroll read-only swarm reconnaissance sub-agent for governed cpp rollout"
+  - id: swarm-reviewer
+    state: enrolled
+    reason: "enroll read-only swarm territory reviewer sub-agent for governed cpp rollout"
+  - id: swarm-verifier
+    state: enrolled
+    reason: "enroll read-only swarm verification sub-agent for governed cpp rollout"
