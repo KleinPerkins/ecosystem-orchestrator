@@ -55,6 +55,15 @@ A non-empty block set aborts before any push, so a mixed approved/blocked enroll
 payload PRs. `cpp-sync --execute` opens async auto-merge PRs; `last_synced_cpp_sha` is refreshed only from
 observed cpp main by `repair`, not by PR creation.
 
+The manifest keeps active delivery and prune ownership separate: `items` is exactly the current
+preflight-clean active set, while `owned_ids` is the sorted union of active ids, fixed orchestrator
+tooling, currently marked (`VENDORED.md`) cpp payloads, and the prior manifest's active/owned ids.
+Removed ownership remains as a historical tombstone: cpp laptops have no acknowledgement channel and
+may sync arbitrarily late, so automatic expiry would recreate dangling links. The namespace is bounded
+to fixed tooling, marked payloads, and ids this writer previously emitted as active or owned;
+cpp-native and foreign-quiver ids are never inferred. Payloads and links are eventually deleted while
+their non-operative ownership tombstones keep late prune safe.
+
 The cpp reconciler is table-driven for the Phase-2 routing set: `skill` directory links to all tools,
 `mcp` is record-first, `sub-agent` links `<id>.md` into agent homes, `rule` links `<id>.mdc` into Cursor
 rules only, and `tool` is record-only. `rule sub-agent tool` are enabled after cpp PR #170 merged green.
@@ -102,5 +111,6 @@ templates/eco-lock/        master copy of the self-contained consumer lock write
 The laptop is the only PR author/committer (holds creds). GitHub Actions are signal/validation only and
 never hold secrets. The cpp **control** plane (`_ops/`, `.github/`) is never touched by the orchestrator;
 only the cpp **data** plane (`quiver/<cat>/<id>` payloads + the one manifest file) is written. Delete-
-propagation is bounded to orchestrator-owned payloads (the `VENDORED.md` marker) minus a denylist. Born-
-compliant: LOCAL noreply identity + identity-guard / data-guard / session-lock pre-commit hooks.
+propagation is bounded to orchestrator-owned payloads (the `VENDORED.md` marker) minus a denylist;
+downstream link prune additionally requires the id in manifest `owned_ids`. Born-compliant: LOCAL
+noreply identity + identity-guard / data-guard / session-lock pre-commit hooks.

@@ -105,3 +105,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: kind:tool discoverability descriptor fixture (design-only, Part 4)
         run: bash tests/test_tool_descriptor_payload.sh
+
+  delete-propagation-fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: bounded manifest ownership lifecycle
+        run: bash tests/test_delete_propagation.sh

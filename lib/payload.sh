@@ -326,12 +326,13 @@ payload_content_digest() {
   unset -f _pcd_sha
 }
 
-# payload_emit_manifest <dst_file> <owned_csv> <existing_text> <id:category:scope:expose>...
+# payload_emit_manifest <dst_file> <owned_ids> <existing_text> <id:category:scope:expose>...
 # Write the data-plane eco-capability-manifest.yml (schema eco-manifest/v1, meta-less so cpp's C0-C6
-# engine never parses it). The body (owned_ids + items) is the only diff-determining content; the
-# `generated_at` stamp is PRESERVED from <existing_text> whenever the body is unchanged, so a no-op
-# cpp-sync re-emits a BYTE-IDENTICAL file (git no-op -> no spurious manifest PR). Items arrive pre-
-# sorted by the caller as `id:category:scope:space-joined-expose` tuples.
+# engine never parses it). `items` is the active delivery set; `owned_ids` is the independently
+# derived active-plus-historical-tombstone prune namespace. The body is the only diff-determining
+# content; the `generated_at` stamp is PRESERVED from <existing_text> whenever the body is unchanged,
+# so a no-op cpp-sync re-emits a BYTE-IDENTICAL file (git no-op -> no spurious manifest PR). Items
+# arrive pre-sorted by the caller as `id:category:scope:space-joined-expose` tuples.
 payload_emit_manifest() {
   local dst="$1" owned="$2" existing="$3"; shift 3
   local items="" tup id cat scope expose e o
@@ -357,11 +358,14 @@ schema: eco-manifest/v1
 # eco-capability-manifest.yml — orchestrator-written DATA-plane file (B5). meta-LESS by design so
 # cpp's quiver integrity engine + production-bar (which parse meta.yml only) never see it; it is
 # consistency-excluded (lib/consistency.sh shared_list) so per-sync regen never breaks INV-master.
-# Prune input for the cpp-side reconciler: it prunes only orchestrator-marked payloads whose ids are in
-# owned_ids but absent from items, and independently refuses to touch any cpp-owned shelf (B6
-# defense-in-depth). Regenerated as one atomic PR per cpp-sync run, landing AFTER the per-id payload PRs
-# (eventual consistency is safe: the reconciler warns-on-missing-payload, never hard-fails or prunes a
-# not-yet-landed id).
+# Prune input for the cpp-side reconciler: items is the active set; owned_ids is the independently
+# derived current-or-removed ownership set. The reconciler prunes only exact current-repo links
+# authorized by owned_ids and independently refuses cpp-native or foreign-quiver links (B6
+# defense-in-depth). Removed ownership remains as a bounded historical tombstone so laptop reconcilers
+# that sync arbitrarily late can still prune dangling links; no cpp-native id is inferred into the set.
+# Regenerated as one atomic PR per cpp-sync run, landing AFTER the per-id payload PRs (eventual
+# consistency is safe: the reconciler warns-on-missing-payload and never hard-fails a not-yet-landed
+# active item).
 generated_at: "$1"
 owned_ids: $ownseq
 items:
