@@ -137,6 +137,29 @@ cmd_rollback() {
   fi
 }
 
+manifest_diff_mentions_id() {
+  local id="$1"
+  awk -v want="$id" '
+    /^[+-][[:space:]]*-[[:space:]]*id:[[:space:]]*/ {
+      v=$0
+      sub(/^[+-][[:space:]]*-[[:space:]]*id:[[:space:]]*/, "", v)
+      gsub(/[[:space:]]/, "", v)
+      if (v == want) found=1
+    }
+    /^[+-]owned_ids:[[:space:]]*\[/ {
+      v=$0
+      sub(/^[+-]owned_ids:[[:space:]]*\[/, "", v)
+      sub(/\].*$/, "", v)
+      n=split(v, ids, ",")
+      for (i=1; i<=n; i++) {
+        gsub(/[[:space:]]/, "", ids[i])
+        if (ids[i] == want) found=1
+      }
+    }
+    END { exit found ? 0 : 1 }
+  '
+}
+
 close_inflight_prs() {
   local id="$1" reason="$2" repo refs ref num diff
   [ "${ORCH_SKIP_GH_PR_CLOSE:-0}" = 1 ] && { orch_warn "quarantine: ORCH_SKIP_GH_PR_CLOSE=1; skipping PR close step"; return 0; }
@@ -153,7 +176,7 @@ close_inflight_prs() {
         ;;
       "$PREFIX/manifest"-*)
         diff="$(gh pr diff "$num" --repo "$repo" 2>/dev/null || true)"
-        if printf '%s\n' "$diff" | grep -qE "^[+-][[:space:]]*- id: $id$|^[+-][[:space:]]*id: $id$"; then
+        if printf '%s\n' "$diff" | manifest_diff_mentions_id "$id"; then
           gh pr close "$num" --repo "$repo" --comment "Closed by orchestrator quarantine for $id: $reason" >/dev/null 2>&1 \
             && orch_log "quarantine: closed manifest PR #$num ($ref)" || orch_warn "quarantine: failed to close manifest PR #$num ($ref)"
         fi

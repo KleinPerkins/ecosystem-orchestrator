@@ -28,8 +28,10 @@ cpp_forbidden_paths: _ops/ .github/
 # enabled_kinds: the cpp-VENDORABLE kinds. cpp-sync REFUSES any enrolled id whose meta.yml kind is not
 # in this list. Phase-2 routing kinds were enabled after cpp PR #170 merged green. Space-separated.
 enabled_kinds: skill mcp rule sub-agent tool
-# cpp_sync_denylist: orchestrator-owned cpp ids that delete-propagation must NEVER auto-remove (the
-# data-plane manifest tooling item lives here, B5). Space-separated.
+# cpp_sync_denylist: fixed orchestrator-owned cpp ids that delete-propagation must NEVER auto-remove
+# (the data-plane manifest tooling item lives here, B5). Manifest `owned_ids` additionally derives
+# active ids and bounded historical removal tombstones; this list is only the fixed tooling floor.
+# Space-separated.
 cpp_sync_denylist: eco-capability-sync
 
 # --- Downstream personal consumer (chaos-labs), shim-sync only ---

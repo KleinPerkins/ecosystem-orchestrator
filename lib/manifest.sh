@@ -5,8 +5,10 @@
 #
 #   manifest.sh [--cpp-dir DIR] [--execute] <id> [<id> ...]
 #     <id>...      the orchestrator-vendored capability ids to list under `items:` (the cpp-sync
-#                  preflight-clean "ok" set). owned_ids comes from cpp_sync_denylist (the orchestrator-
-#                  owned tooling ids). Category/scope/expose are read LIVE from each master meta.yml.
+#                  preflight-clean "ok" set). `owned_ids` is derived independently as the union of
+#                  active items, marked payloads currently in cpp, prior active/owned ids, and fixed
+#                  orchestrator tooling ids. Removed ownership is retained for late downstream prune.
+#                  Category/scope/expose are read LIVE from each master meta.yml.
 #     (default)    DRY-RUN: prepare a work clone, write the manifest, commit on a branch, run cpp's
 #                  integrity engine locally. NO push / NO PR. A byte-identical manifest is a no-op.
 #     --execute    additionally push + open the governed PR + enable native auto-merge on green.
@@ -36,9 +38,9 @@ PREFIX="$(orch_cfg_get cpp_pr_branch_prefix)";       PREFIX="${PREFIX:-orchestra
 FORBIDDEN_PATHS="$(orch_cfg_get cpp_forbidden_paths)"
 SRC_GLOBAL="$(orch_expand "$(orch_cfg_get source_skills_global)")"
 SRC_MCP_LOCAL="$(orch_expand "$(orch_cfg_get source_mcp_local)")"
-OWNED="$(orch_cfg_get cpp_sync_denylist)"; OWNED="${OWNED:-eco-capability-sync}"
+FIXED_OWNED="$(orch_cfg_get cpp_sync_denylist)"; FIXED_OWNED="${FIXED_OWNED:-eco-capability-sync}"
 # The manifest lives inside the FIRST owned tooling id's dir (the orchestrator-owned sync shelf).
-TOOL_ID="${OWNED%% *}"
+TOOL_ID="${FIXED_OWNED%% *}"
 REL="$QUIVER/tooling/$TOOL_ID/eco-capability-manifest.yml"
 
 resolve_master() {
@@ -61,6 +63,55 @@ build_tuples() {
     expose="$(payload_expose_norm "$m")"
     printf '%s:%s:%s:%s\n' "$id" "$cat" "$scope" "$expose"
   done | LC_ALL=C sort
+}
+
+# The manifest separates active delivery (`items`) from prune authorization (`owned_ids`).
+# Ownership is intentionally bounded to four sources:
+#   1. fixed orchestrator tooling ids;
+#   2. this generation's active items;
+#   3. current cpp payloads carrying the orchestrator's VENDORED.md marker; and
+#   4. the prior manifest's active and owned ids.
+#
+# Removed ids remain as ownership tombstones because cpp laptop reconcilers have no acknowledgement
+# channel and may sync arbitrarily late; expiring them automatically would recreate dangling links.
+# The namespace is still bounded: only fixed ids, real marked payloads, and ids this writer previously
+# emitted as active/owned can enter it. Repeated generation from the same cpp base is byte-stable.
+build_owned_ids() {
+  local tuples="$1" existing="$2" d o
+  {
+    for o in $FIXED_OWNED; do printf '%s\n' "$o"; done
+    printf '%s\n' "$tuples" | awk -F: 'NF && $1!="" {print $1}'
+    if [ -d "$WORK/$QUIVER" ]; then
+      for d in "$WORK/$QUIVER"/*/*; do
+        [ -f "$d/VENDORED.md" ] || continue
+        basename "$d"
+      done
+    fi
+    # Prior active ids seed migration from manifests written before active ownership was emitted.
+    printf '%s\n' "$existing" | awk '
+      /^items:[[:space:]]*$/ { in_items=1; next }
+      in_items && /^[[:space:]]*-[[:space:]]*id:[[:space:]]*/ {
+        v=$0
+        sub(/^[[:space:]]*-[[:space:]]*id:[[:space:]]*/, "", v)
+        gsub(/[[:space:]]/, "", v)
+        if (v != "") print v
+      }
+    '
+    # Prior ownership is monotonic. Without per-laptop acknowledgements this is the only deterministic
+    # way to let an arbitrarily late downstream reconcile prune a link after its payload disappeared.
+    printf '%s\n' "$existing" | awk '
+      /^owned_ids:[[:space:]]*\[/ {
+        v=$0
+        sub(/^owned_ids:[[:space:]]*\[/, "", v)
+        sub(/\].*$/, "", v)
+        n=split(v, ids, ",")
+        for (i=1; i<=n; i++) {
+          gsub(/[[:space:]]/, "", ids[i])
+          if (ids[i] != "") print ids[i]
+        }
+      }
+    '
+  } | awk '/^[A-Za-z0-9][A-Za-z0-9._-]*$/ && !seen[$0]++' | LC_ALL=C sort
 }
 
 prepare_clone() {
@@ -121,10 +172,11 @@ git -C "$WORK" checkout -qB "$BRANCH"
 
 mkdir -p "$(dirname "$WORK/$REL")"
 EXISTING=""; [ -f "$WORK/$REL" ] && EXISTING="$(cat "$WORK/$REL")"
+OWNED_IDS="$(build_owned_ids "$TUPLES" "$EXISTING" | paste -sd' ' -)"
 # shellcheck disable=SC2046
 # Intentional word-split of the newline tuple list into positional args.
 IFS=$'\n' read -r -d '' -a _tarr < <(printf '%s\0' "$TUPLES")
-payload_emit_manifest "$WORK/$REL" "$OWNED" "$EXISTING" "${_tarr[@]+"${_tarr[@]}"}"
+payload_emit_manifest "$WORK/$REL" "$OWNED_IDS" "$EXISTING" "${_tarr[@]+"${_tarr[@]}"}"
 
 git -C "$WORK" add "$REL"
 CHANGED="$(git -C "$WORK" diff --cached --name-only)"
