@@ -114,3 +114,5 @@ only the cpp **data** plane (`quiver/<cat>/<id>` payloads + the one manifest fil
 propagation is bounded to orchestrator-owned payloads (the `VENDORED.md` marker) minus a denylist;
 downstream link prune additionally requires the id in manifest `owned_ids`. Born-compliant: LOCAL
 noreply identity + identity-guard / data-guard / session-lock pre-commit hooks.
+
+Pull requests are protected by runnerless v3 verification.
