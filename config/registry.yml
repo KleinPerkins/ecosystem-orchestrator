@@ -177,3 +177,6 @@ items:
     content_digest: "2b0f9fe222c178a36bf6e48ecec12de3bfd5e1647b3630bb141aa34be54b2fd1"
     last_synced_cpp_sha: "ed37525c02215d43771923ba384aa32ccf27d098"
     last_synced_at: "2026-07-10T19:26:50Z"
+  - id: subagent-orchestration
+    state: enrolled
+    reason: "shared subagent model-tier policy required by swarm and cpp agent runtimes"
