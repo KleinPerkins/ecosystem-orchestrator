@@ -193,4 +193,5 @@ if ( cd "$DUP" && bash .github/scripts/eco-lock.sh write ) >/tmp/lockkit-duplica
   exit 1
 fi
 
+bash "$ROOT/tests/test_registry_cli.sh"
 echo "test_lockkit: OK"

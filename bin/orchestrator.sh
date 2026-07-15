@@ -39,6 +39,7 @@ cmd_exclude() { _reg_verb exclude excluded "$@"; }
 cmd_demote()  { _reg_verb demote  demoted  "$@"; }
 _reg_verb() {
   local verb="$1" state="$2" id="${3:-}"; shift 3 2>/dev/null || true
+  [ "${1:-}" = "--" ] && shift
   local reason="$*"
   [ -n "$id" ] || { orch_err "usage: orchestrator $verb <id> [reason]"; return 2; }
   reg_assert_schema || return 1
