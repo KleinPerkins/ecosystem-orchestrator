@@ -183,3 +183,6 @@ items:
     content_digest: "909d9a794ceff319ed2d3f9ab4b9ed4fd95f8f03f57ff4e480423b91830e510e"
     last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
     last_synced_at: "2026-07-15T20:54:36Z"
+  - id: keep-awake
+    state: excluded
+    reason: "Darwin/Amphetamine desktop keep-awake; user-hook + GUI-app bound; kind plugin not in enabled_kinds; no downstream target"

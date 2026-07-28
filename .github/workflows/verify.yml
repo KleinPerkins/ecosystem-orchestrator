@@ -90,6 +90,13 @@ jobs:
       - name: lockkit fixture matrix
         run: bash tests/test_lockkit.sh
 
+  plugin-discovery-fixture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: global plugin discovery and exclusion fixture
+        run: bash tests/test_plugin_discovery.sh
+
   google-kit-suite-fixtures:
     runs-on: ubuntu-latest
     steps:
