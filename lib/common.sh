@@ -58,7 +58,7 @@ orch_meta_field() {
   awk -F': *' -v f="$field" '$1==f{print $2; exit}' "$file" 2>/dev/null | tr -d '"' | tr -d "'" | tr -d '[:space:]'
 }
 
-orch_skill_shelves() { printf '%s\n' skills rules sub-agents tools; }
+orch_skill_shelves() { printf '%s\n' skills rules sub-agents tools plugins; }
 
 orch_skill_shelf_for_kind() {
   case "$1" in
@@ -66,6 +66,7 @@ orch_skill_shelf_for_kind() {
     rule)      printf 'rules\n' ;;
     sub-agent) printf 'sub-agents\n' ;;
     tool)      printf 'tools\n' ;;
+    plugin)    printf 'plugins\n' ;;
     *) return 1 ;;
   esac
 }
