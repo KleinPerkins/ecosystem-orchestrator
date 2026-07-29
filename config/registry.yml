@@ -186,3 +186,6 @@ items:
   - id: keep-awake
     state: excluded
     reason: "Darwin/Amphetamine desktop keep-awake; user-hook + GUI-app bound; kind plugin not in enabled_kinds; no downstream target"
+  - id: plan-refine
+    state: enrolled
+    reason: "flavor-1 homegrown global plan-hardening skill; sibling of prompt-architect (framework library); stacks with swarm (consumes the four-test methodology as review doctrine)"
