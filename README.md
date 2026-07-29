@@ -129,6 +129,7 @@ the reviewer App arm auto-merge once the Check is green). Protected paths (`.git
 stay owner-approval-only and are never auto-approved.
 
 This constraint is specific to the `pr-automation / verify` fleet and does **not** apply to WF2's
-cpp vendoring path: `Affirm/card-platform-product` runs its own required checks plus an
-`evaluate-approve-merge` CODEOWNER bot that tolerate auto-merge enabled immediately after create,
+cpp vendoring path: `Affirm/card-platform-product` runs its own required checks plus the
+`@affirm-cpp-bot` CODEOWNER auto-approval (`cpp-auto-approve.yml`), which tolerate auto-merge enabled
+immediately after create,
 so `lib/vendor.sh` / `lib/manifest.sh` correctly open `--auto` PRs (WF2 "auto-merge on green").
