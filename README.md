@@ -116,3 +116,19 @@ downstream link prune additionally requires the id in manifest `owned_ids`. Born
 noreply identity + identity-guard / data-guard / session-lock pre-commit hooks.
 
 Pull requests are protected by runnerless v3 verification.
+
+## PR authoring on fleet-governed repos
+
+`KleinPerkins/skills` and this repo gate merges on the runnerless `pr-automation / verify` Check:
+a verifier App posts the required status, and a separate reviewer App gives the single approval and
+arms native squash auto-merge **only after** that Check passes. Never arm auto-merge at PR-*create*
+time on these repos — enabling `gh pr merge --auto` before the required Check has registered drives
+it into an unreconcilable pending state (it never runs) and deadlocks the PR. Correct sequence:
+open the PR with **no** auto-merge → let `pr-automation / verify` run and pass → then merge (or let
+the reviewer App arm auto-merge once the Check is green). Protected paths (`.github`, `CODEOWNERS`)
+stay owner-approval-only and are never auto-approved.
+
+This constraint is specific to the `pr-automation / verify` fleet and does **not** apply to WF2's
+cpp vendoring path: `Affirm/card-platform-product` runs its own required checks plus an
+`evaluate-approve-merge` CODEOWNER bot that tolerate auto-merge enabled immediately after create,
+so `lib/vendor.sh` / `lib/manifest.sh` correctly open `--auto` PRs (WF2 "auto-merge on green").
