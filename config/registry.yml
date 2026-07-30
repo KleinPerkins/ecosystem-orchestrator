@@ -189,3 +189,6 @@ items:
   - id: plan-refine
     state: enrolled
     reason: "flavor-1 homegrown global plan-hardening skill; sibling of prompt-architect (framework library); stacks with swarm (consumes the four-test methodology as review doctrine)"
+  - id: operator-voice
+    state: excluded
+    reason: "scope: global from M1 (operator-voice-toolkit-build-plan.md, decision D22); excluded is a pre-GA release gate pending independent security review + M5 verifier clearance, not a non-global classification. No cpp-sync has run for this id."
