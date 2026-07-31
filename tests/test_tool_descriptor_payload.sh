@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tests/test_tool_descriptor_payload.sh — hermetic fixture for payload_emit_tool_descriptor
-# (DESIGN-ONLY, AWA dual-goal v2 Part 4; see docs/tool-descriptor-cpp-sync-design.md). Mirrors
-# tests/test_google_kit_payload.sh's shape for the mcp-parity triad, but for kind:tool.
+# (AWA dual-goal v2 Part 4; wired 2026-07-31 M5-B; see docs/tool-descriptor-cpp-sync-design.md).
+# Mirrors tests/test_google_kit_payload.sh's shape for the mcp-parity triad, but for kind:tool.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
@@ -82,11 +82,11 @@ diff -q "$DST/README.md"   "$DST2/README.md"
 diff -q "$DST/VENDORED.md" "$DST2/VENDORED.md"
 diff -q "$DST/meta.yml"    "$DST2/meta.yml"
 
-# Not wired: build_payload()'s kind dispatch in lib/vendor.sh must still be mcp-only (design-only
-# guard — this function exists but is not on the active cpp-sync path yet).
-grep -qE '^\s*if \[ "\$mk" = "mcp" \]; then\s*$' "$ROOT/lib/vendor.sh" \
-  || { echo "vendor.sh kind dispatch changed shape; re-check payload_emit_tool_descriptor is still unwired"; exit 1; }
-grep -q 'payload_emit_tool_descriptor' "$ROOT/lib/vendor.sh" \
-  && { echo "payload_emit_tool_descriptor must NOT be wired into vendor.sh yet (design-only, Part 4)"; exit 1; }
+# Wired (M5-B): build_payload()'s kind dispatch in lib/vendor.sh must call
+# payload_emit_tool_descriptor for a release-descriptor shape master.
+grep -q 'payload_emit_tool_descriptor "\$dst" "\$ID"' "$ROOT/lib/vendor.sh" \
+  || { echo "payload_emit_tool_descriptor is not wired into vendor.sh's build_payload() dispatch"; exit 1; }
+grep -qE 'shape.*=.*release-descriptor' "$ROOT/lib/vendor.sh" \
+  || { echo "vendor.sh build_payload() does not gate on shape:release-descriptor"; exit 1; }
 
 echo "test_tool_descriptor_payload: OK"

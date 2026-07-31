@@ -166,6 +166,46 @@ for id in "${ids[@]}"; do
     continue
   fi
 
+  # kind:tool with a descriptor/snapshot shape also vendors a REGENERATED (not shared-content-diffed)
+  # payload — same regen-and-cmp treatment as mcp, dispatched by shape exactly like vendor.sh's
+  # build_payload(). A plain kind:tool with no recognized shape falls through to the default branch
+  # below (a future ordinary vendorable script/binary shelf, per docs/tool-descriptor-cpp-sync-design.md).
+  if [ "$kind" = "tool" ]; then
+    shape="$(awk -F': *' '/^shape:/{print $2; exit}' "$master/meta.yml" 2>/dev/null | tr -d '"' | tr -d "'" | tr -d '[:space:]')"
+    if [ "$shape" = "release-descriptor" ] || [ "$shape" = "snapshot" ]; then
+      item_drift=0
+      regen="$(mktemp -d)"
+      if [ "$shape" = "release-descriptor" ]; then
+        payload_emit_tool_descriptor "$regen" "$id"
+      else
+        payload_emit_tool_snapshot "$regen" "$id" "$master" || { orch_err "$id: payload_emit_tool_snapshot failed"; drift=1; rm -rf "$regen"; continue; }
+      fi
+      payload_emit_vendored_md "$regen" "$id"
+      base_meta=""; [ -f "$target/meta.yml" ] && base_meta="$(cat "$target/meta.yml")"
+      payload_emit_cpp_meta "$regen" "$id" "$master" "$base_meta"
+
+      expected="$(cd "$regen" 2>/dev/null && find . -type f ! -path '*/.git/*' | sed 's|^\./||' | LC_ALL=C sort)"
+      actual="$(cd "$target" 2>/dev/null && find . -type f ! -path '*/.git/*' | sed 's|^\./||' | LC_ALL=C sort)"
+      while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        if [ ! -f "$target/$f" ]; then
+          printf '  DRIFT  %s: missing in cpp tool payload: %s\n' "$id" "$f"; item_drift=1
+        elif ! cmp -s "$regen/$f" "$target/$f"; then
+          printf '  DRIFT  %s: cpp tool %s differs from regenerated payload\n' "$id" "$f"; item_drift=1
+        fi
+      done <<< "$expected"
+      while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        if ! printf '%s\n' "$expected" | awk -v f="$f" '$0==f{found=1} END{exit found?0:1}'; then
+          printf '  DRIFT  %s: unexpected file in cpp tool payload: %s\n' "$id" "$f"; item_drift=1
+        fi
+      done <<< "$actual"
+      rm -rf "$regen"
+      [ "$item_drift" = 0 ] && printf '  OK     %s: cpp tool payload in sync (byte-equal to regenerated %s package)\n' "$id" "$shape" || drift=1
+      continue
+    fi
+  fi
+
   # Default (skill / workflow / asset / etc): master<->payload byte comparison over shared content.
   item_drift=0
   while IFS= read -r f; do
