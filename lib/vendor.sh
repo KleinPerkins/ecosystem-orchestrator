@@ -130,15 +130,24 @@ emit_cpp_meta() {
 emit_mcp_descriptor() { payload_emit_mcp_descriptor "$1" "$ID"; }
 
 build_payload() {
-  local dst="$WORK/$REL" mk
+  local dst="$WORK/$REL" mk shape
   # Guard the destructive refresh: $dst must be a safe (deep, absolute) path so a mis-set WORK/REL can
   # never `rm -rf` a top-level dir or $HOME (item-21 hardening; $dst is always $WORK/quiver/<cat>/<id>).
   orch_guard_rmrf "$dst" || { orch_err "build_payload: refusing to rebuild unsafe path '$dst'"; exit 1; }
   rm -rf "$dst"; mkdir -p "$dst"
   mk="$(awk -F': *' '/^kind:/{print $2; exit}' "$MASTER/meta.yml" 2>/dev/null)"
+  shape="$(awk -F': *' '/^shape:/{print $2; exit}' "$MASTER/meta.yml" 2>/dev/null | tr -d '"' | tr -d "'" | tr -d '[:space:]')"
   if [ "$mk" = "mcp" ]; then
     # Descriptor mode: NO source tar (mcp masters carry forbidden-ld tokens).
     emit_mcp_descriptor "$dst"
+  elif [ "$mk" = "tool" ] && [ "$shape" = "release-descriptor" ]; then
+    # Pointer-only SSP (e.g. awa): the release repo/ref/commit are ld-only provenance — descriptor,
+    # never source (docs/tool-descriptor-cpp-sync-design.md).
+    payload_emit_tool_descriptor "$dst" "$ID"
+  elif [ "$mk" = "tool" ] && [ "$shape" = "snapshot" ]; then
+    # Snapshot SSP (e.g. operator-voice): the shelf carries real, already zero-link-clean runtime
+    # bytes under payload/ — vendor them verbatim (docs/tool-snapshot-cpp-sync-design.md).
+    payload_emit_tool_snapshot "$dst" "$ID" "$MASTER"
   else
     ( cd "$MASTER" && payload_shared_list "$MASTER" | tar -cf - -T - ) | ( cd "$dst" && tar -xf - )
   fi
