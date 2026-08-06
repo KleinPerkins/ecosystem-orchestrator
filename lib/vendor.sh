@@ -2,6 +2,7 @@
 # lib/vendor.sh — orchestrator vendoring engine (reorg-v2 WS-7). The ONLY sanctioned writer of the
 # ld->cpp edge. Builds a SELF-SUFFICIENT, ld-agnostic copy of a global capability and lands it in
 # cpp/quiver via an LD-authored GOVERNED PR; the delete path propagates a master removal the same way.
+# PR authoring: Regime B (cpp data-plane / WF2 / Decision B) — see README.md § PR authoring.
 #
 #   vendor.sh [--delete] [--execute] [--break-glass-admin] [--cpp-dir DIR] <id>
 #     (default)     DRY-RUN: clone/refresh a work clone, build+stage payload (correct cpp quiver
