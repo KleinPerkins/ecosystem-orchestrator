@@ -117,19 +117,31 @@ noreply identity + identity-guard / data-guard / session-lock pre-commit hooks.
 
 Pull requests are protected by runnerless v3 verification.
 
-## PR authoring on fleet-governed repos
+## PR authoring — two delivery regimes
 
-`KleinPerkins/skills` and this repo gate merges on the runnerless `pr-automation / verify` Check:
-a verifier App posts the required status, and a separate reviewer App gives the single approval and
-arms native squash auto-merge **only after** that Check passes. Never arm auto-merge at PR-*create*
-time on these repos — enabling `gh pr merge --auto` before the required Check has registered drives
-it into an unreconcilable pending state (it never runs) and deadlocks the PR. Correct sequence:
-open the PR with **no** auto-merge → let `pr-automation / verify` run and pass → then merge (or let
-the reviewer App arm auto-merge once the Check is green). Protected paths (`.github`, `CODEOWNERS`)
-stay owner-approval-only and are never auto-approved.
+These are separate delivery regimes. The create-time --auto prohibition applies ONLY to
+fleet-governed repos, NEVER to cpp vendoring PRs opened by this orchestrator.
 
-This constraint is specific to the `pr-automation / verify` fleet and does **not** apply to WF2's
-cpp vendoring path: `Affirm/card-platform-product` runs its own required checks plus the
-`@affirm-cpp-bot` CODEOWNER auto-approval (`cpp-auto-approve.yml`), which tolerate auto-merge enabled
-immediately after create,
-so `lib/vendor.sh` / `lib/manifest.sh` correctly open `--auto` PRs (WF2 "auto-merge on green").
+### Regime A — Fleet-governed repos
+
+Applies to repos gated by `pr-automation / verify`: `KleinPerkins/skills`, this orchestrator,
+and eligible KleinPerkins fleet repos.
+
+- **Never arm auto-merge at PR create.** Enabling `gh pr merge --auto` before the required Check
+  has registered drives the PR into an unreconcilable pending state (it never runs) and deadlocks
+  the PR.
+- **Correct sequence:** open a plain PR with **no** auto-merge → let `pr-automation / verify` run
+  and pass → merge via the reviewer App or operator action (the reviewer App may arm native squash
+  auto-merge only after the Check is green).
+- Protected paths (`.github`, `CODEOWNERS`) stay owner-approval-only and are never auto-approved.
+
+### Regime B — Cpp data-plane / WF2 / Decision B
+
+Applies to `Affirm/card-platform-product` vendoring PRs opened by `lib/vendor.sh` and manifest PRs
+from `lib/manifest.sh`.
+
+- **`--auto --squash` at PR create IS correct.** Decision B: routine landing relies on cpp's
+  server-side required checks plus `@affirm-cpp-bot` CODEOWNER auto-approval
+  (`cpp-auto-approve.yml`) — not the fleet reviewer App.
+- **Gate:** local cpp-integrity must be GREEN before push; auto-merge waits for cpp's own checks
+  and bot approval.
