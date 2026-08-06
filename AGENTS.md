@@ -1,6 +1,13 @@
 # ecosystem-orchestrator
 
-<!-- TODO: author — one paragraph summarizing this repository's role for agents and operators -->
+This repository is the single sanctioned bridge between the home workspace (ld) and Affirm's
+governed `card-platform-product` repo (cpp). Agents and operators use it to maintain the global
+capability enrollment registry (WF1), run health and consistency checks, and deliver ld-agnostic
+payloads into cpp's data plane via governed PRs (WF2). Do not hand-vendor into cpp, edit cpp's
+control plane (`_ops/`, `.github/`), or duplicate relationship facts elsewhere — invoke
+`bin/orchestrator.sh` verbs and treat `config/relationship.yml` as the ld↔cpp relationship
+source of truth. PRs **in this repo** follow Regime A (plain open, no auto-merge at create); cpp
+vendoring PRs opened by `lib/vendor.sh` / `lib/manifest.sh` follow Regime B (README § PR authoring).
 
 ## Structural routing (reconstructed skeleton — not semantic prose)
 
