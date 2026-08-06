@@ -197,5 +197,5 @@ items:
   - id: xlsx
     state: enrolled
     reason: "enroll anthropic flavor-2 xlsx skill for cpp sync (skills PR #100)"
-    approved_digest: "8df18bac85fa63298a0dcf3d7f4fc1237da0e7eb93db2737032d5a5a17b7fd96"
-    content_digest: "8df18bac85fa63298a0dcf3d7f4fc1237da0e7eb93db2737032d5a5a17b7fd96"
+    approved_digest: "acb5585b5afe964265787e673397a16af9e1a6e2fc6f43e8df7f4f4a789adb82"
+    content_digest: "acb5585b5afe964265787e673397a16af9e1a6e2fc6f43e8df7f4f4a789adb82"
