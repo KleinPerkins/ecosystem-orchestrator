@@ -149,7 +149,9 @@ _digest_meta() {
     printf 'expose=%s\n'            "$expose"
     printf 'provenance_source=%s\n' "$(_field provenance_source "$m")"
     printf 'provenance_ref=%s\n'    "$(_field provenance_ref "$m")"
-    [ -n "$descriptor_ref" ] && printf 'descriptor_ref=%s\n' "$descriptor_ref"
+    if [ -n "$descriptor_ref" ]; then
+      printf 'descriptor_ref=%s\n' "$descriptor_ref"
+    fi
   } | _sha
 }
 
