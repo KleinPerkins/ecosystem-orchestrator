@@ -199,3 +199,6 @@ items:
     reason: "enroll anthropic flavor-2 xlsx skill for cpp sync (skills PR #100)"
     approved_digest: "acb5585b5afe964265787e673397a16af9e1a6e2fc6f43e8df7f4f4a789adb82"
     content_digest: "acb5585b5afe964265787e673397a16af9e1a6e2fc6f43e8df7f4f4a789adb82"
+  - id: pr-steward
+    state: enrolled
+    reason: "session-scoped async PR steward (flavor-1 homegrown global skill; composes autopilot/loop/automate)"
