@@ -10,9 +10,8 @@
       "id": "repo.ecosystem-orchestrator.m3-verify",
       "argv": [
         "run-literal",
-        "test",
-        "-f",
-        "lib/vendor.sh"
+        "bash",
+        "tests/run-tests.sh"
       ],
       "environment": {},
       "depends_on": ["canned.repository-contract.v1"]
