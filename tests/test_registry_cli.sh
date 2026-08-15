@@ -11,7 +11,7 @@ printf '%s\n' \
   'items:' > "$REGISTRY"
 
 ORCH_REGISTRY="$REGISTRY" \
-  "$ROOT/bin/orchestrator.sh" enroll demo -- "documented reason" >/dev/null
+  bash "$ROOT/bin/orchestrator.sh" enroll demo -- "documented reason" >/dev/null
 
 reason="$(
   ORCH_REGISTRY="$REGISTRY" bash -c \
