@@ -148,3 +148,6 @@ from `lib/manifest.sh`.
   (`cpp-auto-approve.yml`) — not the fleet reviewer App.
 - **Gate:** local cpp-integrity must be GREEN before push; auto-merge waits for cpp's own checks
   and bot approval.
+
+G4 requiredness proof evidence: this head restores `lib/payload.sh` byte-for-byte after the
+deliberate failure seed and proves `repo.ecosystem-orchestrator.m3-verify` permits merge.
