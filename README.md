@@ -117,6 +117,9 @@ noreply identity + identity-guard / data-guard / session-lock pre-commit hooks.
 
 Pull requests are protected by runnerless v3 verification.
 
+G4 informational proof evidence: the runnerless recipe now exercises the shell regression wrapper
+and fails when the shared payload helper invariant is broken.
+
 ## PR authoring — two delivery regimes
 
 These are separate delivery regimes. The create-time --auto prohibition applies ONLY to
