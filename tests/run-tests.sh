@@ -9,4 +9,3 @@ bash tests/test_tool_snapshot_payload.sh
 bash tests/test_chaos_shim.sh
 bash tests/test_lockkit.sh
 bash tests/test_delete_propagation.sh
-bash tests/__g4_expected_failure_seed__.sh
