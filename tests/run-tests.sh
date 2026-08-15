@@ -9,3 +9,4 @@ bash tests/test_tool_snapshot_payload.sh
 bash tests/test_chaos_shim.sh
 bash tests/test_lockkit.sh
 bash tests/test_delete_propagation.sh
+printf 'PR_AUTOMATION_VERIFY_OK\n'
