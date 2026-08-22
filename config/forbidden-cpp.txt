@@ -5,4 +5,6 @@ cpp-stuff
 affirm/(src|vendor)
 # bare "cpp" as a whole word, including at start/end of a line (the old [^A-Za-z]cpp[^A-Za-z] missed
 # a leading/trailing occurrence). Anchored both sides so it can't be embedded in a longer identifier.
-(^|[^A-Za-z])cpp([^A-Za-z]|$)
+# The leading class also excludes '.' so ordinary file-extension literals (e.g. ".cpp"/".hpp") do not
+# false-positive; mirrors Skills .github/scripts/verify-skills.sh and ~/dev/_ops/eco/verify-zero-link.sh.
+(^|[^A-Za-z.])cpp([^A-Za-z]|$)
