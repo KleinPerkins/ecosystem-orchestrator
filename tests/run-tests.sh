@@ -25,3 +25,4 @@ run_test tests/test_tool_snapshot_payload.sh
 run_test tests/test_chaos_shim.sh
 run_test tests/test_lockkit.sh
 run_test tests/test_delete_propagation.sh
+run_test tests/test_zero_link.sh
