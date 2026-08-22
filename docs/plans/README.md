@@ -11,7 +11,7 @@ version is never modified.
 
 | Plan | Status | Date | Notes |
 |---|---|---|---|
-| <!-- TODO: doc-warden will populate rows here via repair --> | | | |
+| [Context Efficiency D-04 — Global capability projection reconciliation](context-efficiency-d04-projection-reconciliation-v1.md) | DRAFT | 2026-08-22 | Release 1.1 final lane; planning only, with separate acceptance, flavor-2 approval, and cpp-sync gates. |
 
 ## Conventions
 
