@@ -30,8 +30,8 @@ items:
   - id: prompt-architect
     state: enrolled
     reason: "first end-to-end skill consumer (flavor-2 snapshot)"
-    approved_digest: "2d5315071759bfee3f8ee18d958daad3fd28c51e83f372a8bc83883b13752ec3"
-    content_digest: "2d5315071759bfee3f8ee18d958daad3fd28c51e83f372a8bc83883b13752ec3"
+    approved_digest: "6f6ce4ee29e35101dc2d199b3159afe36bd4ab2995710f94270a4edc8cedaf79"
+    content_digest: "6f6ce4ee29e35101dc2d199b3159afe36bd4ab2995710f94270a4edc8cedaf79"
     last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
     last_synced_at: "2026-07-15T20:54:36Z"
   - id: google-kit
@@ -49,8 +49,8 @@ items:
   - id: algorithmic-art
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
-    approved_digest: "47be6b955463043608007c5789340025d5ecec9c5ae926fc3ae4dd40a066c225"
-    content_digest: "47be6b955463043608007c5789340025d5ecec9c5ae926fc3ae4dd40a066c225"
+    approved_digest: "51ee347b18037a6bb6867a9f4741925905011b3ff9bac4c4514bf5fd17e2477e"
+    content_digest: "51ee347b18037a6bb6867a9f4741925905011b3ff9bac4c4514bf5fd17e2477e"
     last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
     last_synced_at: "2026-07-15T20:54:36Z"
   - id: canvas-design
@@ -63,15 +63,15 @@ items:
   - id: claude-api
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
-    approved_digest: "b9aae3dd75eafef1007d9ed48bd580735562e907eed40de6597f42b338537646"
-    content_digest: "b9aae3dd75eafef1007d9ed48bd580735562e907eed40de6597f42b338537646"
+    approved_digest: "96d726e19f277f72f68c09b4e924c581569558fc832e22ef271627abbd2709dd"
+    content_digest: "96d726e19f277f72f68c09b4e924c581569558fc832e22ef271627abbd2709dd"
     last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
     last_synced_at: "2026-07-15T20:54:36Z"
   - id: doc-coauthoring
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
-    approved_digest: "46fb1e38be330db693476b5755879e079b4ce6289536ffaa1f4dfeb5ddce5067"
-    content_digest: "46fb1e38be330db693476b5755879e079b4ce6289536ffaa1f4dfeb5ddce5067"
+    approved_digest: "f0dec899204b777256c9282106c8013ccb88473d3e48ef847f4c182a19f44ba4"
+    content_digest: "f0dec899204b777256c9282106c8013ccb88473d3e48ef847f4c182a19f44ba4"
     last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
     last_synced_at: "2026-07-15T20:54:36Z"
   - id: frontend-design
@@ -84,8 +84,8 @@ items:
   - id: internal-comms
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
-    approved_digest: "777bf0e3305f61972cca7f813359712dd945cbd994e2474acaf21df770a272bc"
-    content_digest: "777bf0e3305f61972cca7f813359712dd945cbd994e2474acaf21df770a272bc"
+    approved_digest: "cef9074c583510a021c8f8b4acac23b1b0a01a42392f15114655784f5c78bb66"
+    content_digest: "cef9074c583510a021c8f8b4acac23b1b0a01a42392f15114655784f5c78bb66"
     last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
     last_synced_at: "2026-07-15T20:54:36Z"
   - id: mcp-builder
@@ -98,15 +98,15 @@ items:
   - id: pdf
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
-    approved_digest: "259f217326d4d5c372988e185020fef0403e5a016cdc4533e1cf815ded22895b"
-    content_digest: "259f217326d4d5c372988e185020fef0403e5a016cdc4533e1cf815ded22895b"
+    approved_digest: "30ef7991425a184b02d2c1e69b0daa744a1bba5ada74ff7942425af1c2db3243"
+    content_digest: "30ef7991425a184b02d2c1e69b0daa744a1bba5ada74ff7942425af1c2db3243"
     last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
     last_synced_at: "2026-07-15T20:54:36Z"
   - id: skill-creator
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
-    approved_digest: "9403876091fef2f9d6b2337b28ee4cb8a3dccfe5e14cb1319e63235c96f3be35"
-    content_digest: "9403876091fef2f9d6b2337b28ee4cb8a3dccfe5e14cb1319e63235c96f3be35"
+    approved_digest: "48f42213be27659a788132882dee45e3226ba1405aa44c32f9201391bcb98551"
+    content_digest: "48f42213be27659a788132882dee45e3226ba1405aa44c32f9201391bcb98551"
     last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
     last_synced_at: "2026-07-15T20:54:36Z"
   - id: slack-gif-creator
@@ -197,8 +197,8 @@ items:
   - id: xlsx
     state: enrolled
     reason: "enroll anthropic flavor-2 xlsx skill for cpp sync (skills PR #100)"
-    approved_digest: "acb5585b5afe964265787e673397a16af9e1a6e2fc6f43e8df7f4f4a789adb82"
-    content_digest: "acb5585b5afe964265787e673397a16af9e1a6e2fc6f43e8df7f4f4a789adb82"
+    approved_digest: "f46491ec2bfde6460c64014b362abc7fee68cabefa0c5e7587d15ee6cc299d88"
+    content_digest: "f46491ec2bfde6460c64014b362abc7fee68cabefa0c5e7587d15ee6cc299d88"
   - id: pr-steward
     state: enrolled
     reason: "session-scoped async PR steward (flavor-1 homegrown global skill; composes autopilot/loop/automate)"
