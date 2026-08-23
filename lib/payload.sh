@@ -363,6 +363,15 @@ payload_shared_list() {
       case "$f" in
         meta.yml|install.sh|VENDORED.md|eco-capability-manifest.yml) continue ;;
         .git/*|*/.git/*|__pycache__/*|*/__pycache__/*|.state/*|*/.state/*|*.pyc) continue ;;
+        # A `tests/` dir at ANY depth is the master's OWN local-verification harness, not vendorable
+        # payload: such fixtures routinely embed ld provenance (e.g. swarm/tests/test_bootstrap.sh's
+        # literal KleinPerkins/skills git URLs) that legitimately trips `orch_zero_link cpp` and aborts
+        # the whole registry-wide sync. Excluding them HERE — in the one shared lister that
+        # payload_content_digest AND consistency.sh (shared_list) AND vendor emit (build_payload) all
+        # consume — keeps digest/consistency/vendor in lockstep. Consequence: the content digest of a
+        # master that carries tests/ legitimately changes when this ships (harmless for flavor-1 IDs,
+        # which have no approved_digest gate; NO flavor-2 re-pin master carries a tests/ dir).
+        tests/*|*/tests/*) continue ;;
       esac
       if payload_is_personal_doc_styles_path "$f"; then continue; fi
       printf '%s\n' "$f"
