@@ -12,6 +12,7 @@ version is never modified.
 | Plan | Status | Date | Notes |
 |---|---|---|---|
 | [Context Efficiency D-04 — Global capability projection reconciliation](context-efficiency-d04-projection-reconciliation-v1.md) | ACCEPTED | 2026-08-22 | Release 1.1 final lane; accepted planning authority. Execution gated by separate flavor-2 approval (Gate B) and cpp-sync (Gate C) GOs. |
+| [New-skill atomic vendor — one combined payload + manifest PR](new-skill-atomic-combined-pr-v1.md) | DRAFT | 2026-08-24 | Post–Rel-2 C-03 follow-up: make brand-new-skill `cpp-sync`/`vendor` emit ONE atomic payload+manifest CPP PR (removes the `SKILL_MUTATION_READY` degradation window). |
 
 ## Conventions
 
