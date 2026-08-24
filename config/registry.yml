@@ -202,3 +202,6 @@ items:
   - id: pr-steward
     state: enrolled
     reason: "session-scoped async PR steward (flavor-1 homegrown global skill; composes autopilot/loop/automate)"
+  - id: save-game
+    state: enrolled
+    reason: "flavor-1 homegrown global context-preservation skill (save/resume durable agent state); build-log EVIDENCE.md excluded from cpp payload (Context Efficiency Rel-2 R1)"

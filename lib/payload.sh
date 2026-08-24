@@ -372,6 +372,13 @@ payload_shared_list() {
         # master that carries tests/ legitimately changes when this ships (harmless for flavor-1 IDs,
         # which have no approved_digest gate; NO flavor-2 re-pin master carries a tests/ dir).
         tests/*|*/tests/*) continue ;;
+        # An `EVIDENCE.md` build/acceptance ledger (at any depth) is the master's OWN development
+        # provenance — how the capability was built and verified — not vendorable runtime payload.
+        # Like tests/, it legitimately embeds ld provenance (e.g. save-game/EVIDENCE.md names
+        # `KleinPerkins/skills` in its build-environment note), which correctly trips
+        # `orch_zero_link cpp`. Excluding it in this one shared lister keeps digest/consistency/vendor
+        # in lockstep and keeps build-logs out of the PM-facing cpp copy.
+        EVIDENCE.md|*/EVIDENCE.md) continue ;;
       esac
       if payload_is_personal_doc_styles_path "$f"; then continue; fi
       printf '%s\n' "$f"
