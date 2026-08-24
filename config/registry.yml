@@ -22,10 +22,13 @@ schema: eco-registry/v1
 # below is machine-edited by enroll/exclude/demote/approve/repair/quarantine, so keep it free of
 # interleaved comments (one record per id).
 #
-# Excluded set context: agent-route is a machine-local workspace router (not meaningful as a cpp
-# copy). The Anthropic flavor-2 snapshots (anthropics/skills@35414756) have landed under
-# source_skills_global but enrolling+vendoring each to cpp is a later governed orchestrator PR; they
-# are excluded until then so the drift check treats them as expected omissions.
+# Excluded set context: only two ids are intentionally excluded from cpp-sync. awa is a standalone
+# system package whose cpp delivery is deferred (discoverability-only descriptor pointer, no vendored
+# runtime bytes). keep-awake is Darwin/Amphetamine + GUI-app + user-hook bound and its plugin kind is
+# not in cpp enabled_kinds, so it has no downstream cpp target. Everything else in items: is enrolled
+# and vendored on cpp-sync -- including agent-route (now vendored for cpp PM discovery) and the
+# Anthropic flavor-2 snapshots (anthropics/skills@35414756), all enrolled+vendored under governed
+# orchestrator PRs. The drift check treats only those two excluded ids as expected omissions.
 items:
   - id: prompt-architect
     state: enrolled
