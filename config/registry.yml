@@ -35,176 +35,190 @@ items:
     reason: "first end-to-end skill consumer (flavor-2 snapshot)"
     approved_digest: "6f6ce4ee29e35101dc2d199b3159afe36bd4ab2995710f94270a4edc8cedaf79"
     content_digest: "6f6ce4ee29e35101dc2d199b3159afe36bd4ab2995710f94270a4edc8cedaf79"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: google-kit
     state: enrolled
     reason: "global google-kit suite: source-free MCP descriptor plus bootstrap/repair package (no personal doc-styles)"
-    content_digest: "ea4521c05d114b29ee5944b1e94463777bf04b08f17b79d224d00a8be615c041"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    content_digest: "9bfaecf67dfcf904d268d356ad054587e3ef6f4d2c1451dd2dfd735c5802c4b9"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: agent-route
     state: enrolled
     reason: "global cursor-only workspace router for cpp PM discovery"
-    content_digest: "1f0bfcd4ea6fb9d5a7dc8c994e533d61b3261b0bd08073bb75bcefcd58b1e1e8"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    content_digest: "3504a30f489a44fb2e1e3df00e3185a007fe159a829dff1e0d27972c22d1610b"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: algorithmic-art
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "51ee347b18037a6bb6867a9f4741925905011b3ff9bac4c4514bf5fd17e2477e"
     content_digest: "51ee347b18037a6bb6867a9f4741925905011b3ff9bac4c4514bf5fd17e2477e"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: canvas-design
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "75d5b5d78c783bd6c3be33e8c2530fc623fdf9d8c80982c6b1315dac9c5e247a"
     content_digest: "75d5b5d78c783bd6c3be33e8c2530fc623fdf9d8c80982c6b1315dac9c5e247a"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: claude-api
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "96d726e19f277f72f68c09b4e924c581569558fc832e22ef271627abbd2709dd"
     content_digest: "96d726e19f277f72f68c09b4e924c581569558fc832e22ef271627abbd2709dd"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: doc-coauthoring
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "f0dec899204b777256c9282106c8013ccb88473d3e48ef847f4c182a19f44ba4"
     content_digest: "f0dec899204b777256c9282106c8013ccb88473d3e48ef847f4c182a19f44ba4"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: frontend-design
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "54fe33a7928af02a2568622d53a953045157a8c98f16e63e53234d708057924a"
     content_digest: "54fe33a7928af02a2568622d53a953045157a8c98f16e63e53234d708057924a"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: internal-comms
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "cef9074c583510a021c8f8b4acac23b1b0a01a42392f15114655784f5c78bb66"
     content_digest: "cef9074c583510a021c8f8b4acac23b1b0a01a42392f15114655784f5c78bb66"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: mcp-builder
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "2f397b9c2c5b13e15b79965e61e308812162f751710326b0ff408b19e9f40644"
     content_digest: "2f397b9c2c5b13e15b79965e61e308812162f751710326b0ff408b19e9f40644"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: pdf
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "30ef7991425a184b02d2c1e69b0daa744a1bba5ada74ff7942425af1c2db3243"
     content_digest: "30ef7991425a184b02d2c1e69b0daa744a1bba5ada74ff7942425af1c2db3243"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: skill-creator
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "48f42213be27659a788132882dee45e3226ba1405aa44c32f9201391bcb98551"
     content_digest: "48f42213be27659a788132882dee45e3226ba1405aa44c32f9201391bcb98551"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: slack-gif-creator
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "41c605e28bd6e67f9fdda1d13ca5a705b75ff9877c75bdc61c57ba9cad2d7ea9"
     content_digest: "41c605e28bd6e67f9fdda1d13ca5a705b75ff9877c75bdc61c57ba9cad2d7ea9"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: theme-factory
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "231e72137bd06358644a6229328c682f032bc2d55e663b04396e311fd8b6cca3"
     content_digest: "231e72137bd06358644a6229328c682f032bc2d55e663b04396e311fd8b6cca3"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: web-artifacts-builder
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "57f51ec7fc2f881fa533f4c49e51c331e187e385cd8b0009d4c529201cb9edfa"
     content_digest: "57f51ec7fc2f881fa533f4c49e51c331e187e385cd8b0009d4c529201cb9edfa"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: webapp-testing
     state: enrolled
     reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
     approved_digest: "c5d5cc8cb240b1415e6b69f6bfd3968dfdb40db6c911191eef823acf912c47ea"
     content_digest: "c5d5cc8cb240b1415e6b69f6bfd3968dfdb40db6c911191eef823acf912c47ea"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: capability
     state: enrolled
     reason: "PM capability playbook (flavor-1 homegrown global skill)"
-    content_digest: "00f0baf792b0a32c37d0b5ec9dc3378d945c5a33da3aa7acbc2dbe9f981663c6"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    content_digest: "5ee8108025710f15a4798aef4d79ce157ab275ffa25922db018b54f2ac568785"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: local-jobs
     state: enrolled
     reason: "globalized unified launchd job framework (generic engine)"
-    content_digest: "ae9c5e33b86c2fc3f68b09038652b116fbd43e7ad65fa68bc9eaba6ebdb333df"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    content_digest: "f8bbf2923719d1e5ca7032c051bb975047f4cde3d64fb12824ea621e79896ce1"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: awa
     state: excluded
     reason: "AWA remains a standalone system package; cpp delivery is deferred, so it must not participate in cpp-sync"
-    content_digest: "c280df916bd609a4ffbf3f2acdbc90c6b5c5e9dfb1dd44b42b3eac1f61f878ad"
+    content_digest: "357776d6a5431670c270daba5de1bed95479d5c08b141ad91ae28bd8fa9606f3"
   - id: swarm
     state: enrolled
     reason: "enroll operator-facing global review swarm for governed cpp rollout"
-    content_digest: "c415daf616c711ee569f6ed94693c5030cce140dee944cf84879440f15de5cdb"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    content_digest: "c10f895ac25c6b3dfec080deca51452716b130193a3343676153becf88cc6fc1"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: swarm-probe
     state: enrolled
     reason: "enroll read-only swarm reconnaissance sub-agent for governed cpp rollout"
-    content_digest: "8164544ad7fa6ece93846c587a5bd12f6946112d95cb3fc175f7e239c46a4250"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    content_digest: "9bbcba0823214f0ee46ff5d4435197989c6dd4c2dfc8fc65766eba185f612dd7"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: swarm-reviewer
     state: enrolled
     reason: "enroll read-only swarm territory reviewer sub-agent for governed cpp rollout"
-    content_digest: "96f9260997c6bbb04e6b1bf1b344b47f1752081ee2d37a68a8e75f5ac6391012"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    content_digest: "2ec3233cf2c0c594321e2703314932eeff9b272c4e228bea855754e30b2fea0b"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: swarm-verifier
     state: enrolled
     reason: "enroll read-only swarm verification sub-agent for governed cpp rollout"
-    content_digest: "fcbd6ea8ef382e137ed2affe21df06318e842e240127a10c5dcdc1e9ab14908a"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    content_digest: "e9db10e2289bd272258651613dcd726ffb0c116c48e87d8914f5e78455810856"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: subagent-orchestration
     state: enrolled
     reason: "shared subagent model-tier policy required by swarm and cpp agent runtimes"
-    content_digest: "909d9a794ceff319ed2d3f9ab4b9ed4fd95f8f03f57ff4e480423b91830e510e"
-    last_synced_cpp_sha: "200186b291aee5300eae25b231530293cbc1c86e"
-    last_synced_at: "2026-07-15T20:54:36Z"
+    content_digest: "1cd85c648ff00a0ccb60d3a34932a676a2a30ec744e0902ee3f602b8534358d5"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: keep-awake
     state: excluded
     reason: "Darwin/Amphetamine desktop keep-awake; user-hook + GUI-app bound; kind plugin not in enabled_kinds; no downstream target"
+    content_digest: "5c9bf78638d114cdd38b8fd2dd5c5552accdf3944a4fb9f625789b329cf7ae10"
   - id: plan-refine
     state: enrolled
     reason: "flavor-1 homegrown global plan-hardening skill; sibling of prompt-architect (framework library); stacks with swarm (consumes the four-test methodology as review doctrine)"
+    content_digest: "a1575e7bc3aa6d9e771a643f5b213f20c22855dd1784628a64c32e3ad29b34ec"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: operator-voice
     state: enrolled
     reason: "M5-B: independent security review (4-reviewer swarm) + independent verifier clearance obtained 2026-07-31 (shipping_clearance=approved, 0 open P0/P1); cpp-governed generic kind:tool reconciler landed+green (cpp PR #461/#462/#464); GA-ready per operator-voice-toolkit-build-plan.md M5 sequence"
     approved_digest: "bad3682a3d08588440898cf595a71dcc5497d0e4f0358f5209a64584591feab1"
     content_digest: "bad3682a3d08588440898cf595a71dcc5497d0e4f0358f5209a64584591feab1"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: xlsx
     state: enrolled
     reason: "enroll anthropic flavor-2 xlsx skill for cpp sync (skills PR #100)"
     approved_digest: "f46491ec2bfde6460c64014b362abc7fee68cabefa0c5e7587d15ee6cc299d88"
     content_digest: "f46491ec2bfde6460c64014b362abc7fee68cabefa0c5e7587d15ee6cc299d88"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: pr-steward
     state: enrolled
     reason: "session-scoped async PR steward (flavor-1 homegrown global skill; composes autopilot/loop/automate)"
+    content_digest: "d7801e9c5a4e84b635c171b8e1b66c02c98c5be5c338db18ea6024c7110781b3"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
   - id: save-game
     state: enrolled
     reason: "flavor-1 homegrown global context-preservation skill (save/resume durable agent state); build-log EVIDENCE.md excluded from cpp payload (Context Efficiency Rel-2 R1)"
+    content_digest: "76145157c77aa4a6c98a699b699d92400347edc9b33f9a06821b99003af5d0e9"
+    last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
+    last_synced_at: "2026-08-25T10:54:04Z"
