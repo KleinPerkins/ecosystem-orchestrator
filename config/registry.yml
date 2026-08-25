@@ -22,15 +22,17 @@ schema: eco-registry/v1
 # below is machine-edited by enroll/exclude/demote/approve/repair/quarantine, so keep it free of
 # interleaved comments (one record per id).
 #
-# Excluded set context: three ids are intentionally excluded from cpp-sync. awa is a standalone
+# Excluded set context: four ids are intentionally excluded from cpp-sync. awa is a standalone
 # system package whose cpp delivery is deferred (discoverability-only descriptor pointer, no vendored
 # runtime bytes). keep-awake is Darwin/Amphetamine + GUI-app + user-hook bound and its plugin kind is
 # not in cpp enabled_kinds, so it has no downstream cpp target. verification-before-completion is a
 # vetted flavor-2 snapshot (obra/superpowers@d884ae04) whose meta declares sync_policy:none -- global
-# Cursor exposure only, so it is intentionally not vendored downstream. Everything else in items: is
-# enrolled and vendored on cpp-sync -- including agent-route (now vendored for cpp PM discovery) and the
-# Anthropic flavor-2 snapshots (anthropics/skills@35414756), all enrolled+vendored under governed
-# orchestrator PRs. The drift check treats only those three excluded ids as expected omissions.
+# Cursor exposure only, so it is intentionally not vendored downstream. snow-kit is a personal,
+# in-progress Snowflake-analytics MCP whose cpp distribution is deferred until it matures (it may be
+# superseded by the Affirm-wide Snowflake-MCP rollout); enroll it on promotion. Everything else in
+# items: is enrolled and vendored on cpp-sync -- including agent-route (now vendored for cpp PM
+# discovery) and the Anthropic flavor-2 snapshots (anthropics/skills@35414756), all enrolled+vendored
+# under governed orchestrator PRs. The drift check treats only those four excluded ids as expected omissions.
 items:
   - id: prompt-architect
     state: enrolled
@@ -227,3 +229,6 @@ items:
   - id: verification-before-completion
     state: excluded
     reason: "Flavor-2 vetted snapshot (obra/superpowers@d884ae04); meta declares sync_policy:none -- global Cursor exposure only, intentionally not vendored to cpp"
+  - id: snow-kit
+    state: excluded
+    reason: "Personal in-progress Snowflake-analytics MCP; cpp distribution deferred until mature (may be superseded by the Affirm-wide Snowflake-MCP rollout) -- enroll on promotion"
