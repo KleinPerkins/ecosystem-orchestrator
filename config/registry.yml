@@ -22,16 +22,18 @@ schema: eco-registry/v1
 # below is machine-edited by enroll/exclude/demote/approve/repair/quarantine, so keep it free of
 # interleaved comments (one record per id).
 #
-# Excluded set context: four ids are intentionally excluded from cpp-sync. awa is a standalone
+# Excluded set context: five ids are intentionally excluded from cpp-sync. awa is a standalone
 # system package whose cpp delivery is deferred (discoverability-only descriptor pointer, no vendored
 # runtime bytes). keep-awake is Darwin/Amphetamine + GUI-app + user-hook bound and its plugin kind is
 # not in cpp enabled_kinds, so it has no downstream cpp target. verification-before-completion is a
 # vetted flavor-2 snapshot (obra/superpowers@d884ae04) whose meta declares sync_policy:none -- global
 # Cursor exposure only, so it is intentionally not vendored downstream. snow-kit is a personal global
 # Snowflake MCP (v0.2.0) that has not been promoted for cpp distribution; enroll it on promotion.
+# dev-main-sync is a Darwin/AppKit GUI utility bound to the local host, so no runtime or payload
+# belongs downstream.
 # Everything else in items: is enrolled and vendored on cpp-sync -- including agent-route (now
 # vendored for cpp PM discovery) and the Anthropic flavor-2 snapshots (anthropics/skills@35414756),
-# all enrolled+vendored under governed orchestrator PRs. The drift check treats only those four
+# all enrolled+vendored under governed orchestrator PRs. The drift check treats only those five
 # excluded ids as expected omissions.
 items:
   - id: prompt-architect
@@ -232,3 +234,6 @@ items:
   - id: snow-kit
     state: excluded
     reason: "Personal global Snowflake MCP (v0.2.0), not yet promoted for cpp distribution; enroll on promotion"
+  - id: dev-main-sync
+    state: excluded
+    reason: "Darwin/AppKit GUI utility bound to the local host; no downstream runtime or payload"
