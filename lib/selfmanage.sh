@@ -233,15 +233,16 @@ cmd_vendor() {
     esac; shift
   done
   [ -n "$id" ] || { orch_err "usage: orchestrator vendor [--execute] [--cpp-dir DIR] <id>"; return 2; }
+  # Cheap per-id gates first, then the (slow) WF1 lock/verifier preflight; all pass before any build.
   reg_assert_schema || return 1
   [ "$(reg_state "$id")" = "enrolled" ] \
     || { orch_err "vendor: $id is not enrolled for cpp (run 'orchestrator enroll $id -- <reason>' first)"; return 1; }
-  wf1_preflight || return 1
   wf2_gate_ids "$id"
   if [ -n "${PF_BLOCK# }${PF_SKIP# }" ]; then
     orch_err "vendor: preflight refused $id:${PF_BLOCK}${PF_SKIP} -> nothing built or pushed"
     return 1
   fi
+  wf1_preflight || return 1
   bash "$ORCH_ROOT/lib/vendor.sh" ${v_args[@]+"${v_args[@]}"} "$id"
 }
 

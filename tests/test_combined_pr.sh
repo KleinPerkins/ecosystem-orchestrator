@@ -16,12 +16,16 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-SKILLS="$TMP/skills"; GLOBAL="$SKILLS/global"; MCP="$TMP/mcp"
+SKILLS="$TMP/skills"; GLOBAL="$SKILLS/global"; MCP="$TMP/mcp"; VERIFIER="$TMP/verifier"
 CPP="$TMP/cpp"; ORIGIN="$TMP/origin.git"
 CONFIG="$TMP/relationship.yml"; REGISTRY="$TMP/registry.yml"; LKCFG="$TMP/lockkit.yml"
-VERIFY_MARK="$TMP/verify-skills.ran"
+VERIFY_MARK="$TMP/verify-skills.ran"; VERIFY_FAIL="$TMP/verify-skills.fail"
 MANIFEST_REL="quiver/tooling/eco-capability-sync/eco-capability-manifest.yml"
 export GHLOG="$TMP/gh.log" GHOPEN="$TMP/gh-open-prs" GHFAIL="$TMP/gh-list-fails"
+# No background maintenance/gc helpers: under the sandbox's 64-task cap, gVisor releases finished
+# tasks lazily, so every extra short-lived helper process counts against the bursts below.
+export GIT_CONFIG_COUNT=3 GIT_CONFIG_KEY_0=maintenance.auto GIT_CONFIG_VALUE_0=false \
+  GIT_CONFIG_KEY_1=gc.auto GIT_CONFIG_VALUE_1=0 GIT_CONFIG_KEY_2=receive.autogc GIT_CONFIG_VALUE_2=false
 passes=0
 
 pass() { printf '  PASS %s\n' "$1"; passes=$((passes+1)); }
@@ -43,7 +47,10 @@ make() { [ "${1:-}" = verify ] && [ ! -e RED ]; }   # fixture cpp integrity: GRE
 export -f gh make
 : > "$GHLOG"; : > "$GHOPEN"
 
-# --- skills master repo with the real eco-lock writer + a capability verifier that leaves a mark ---
+# --- skills master repo (its real lock feeds reconcile) + the lockkit target ----------------------
+# The lockkit target is a metadata-free repo carrying the real lock writer and a verify-skills stub:
+# eco-lock's per-capability pipelines (covered by test_lockkit) overflow the verification sandbox's
+# 64-task cap when nested inside cpp-sync.
 emit_master() {   # emit_master <id> <payload-version> [flavor]
   local d="$GLOBAL/skills/$1"
   mkdir -p "$d"
@@ -63,20 +70,24 @@ EOF
 }
 relock() { ( cd "$SKILLS" && bash .github/scripts/eco-lock.sh write >/dev/null ); }
 
-mkdir -p "$MCP" "$SKILLS/.github/scripts"
-git init -q "$SKILLS"
-cp "$ROOT/templates/eco-lock/eco-lock.sh" "$SKILLS/.github/scripts/eco-lock.sh"
-chmod +x "$SKILLS/.github/scripts/eco-lock.sh"
-printf '#!/usr/bin/env bash\n: > "%s"\n' "$VERIFY_MARK" > "$SKILLS/.github/scripts/verify-skills.sh"
+mkdir -p "$MCP" "$SKILLS/.github/scripts" "$VERIFIER/.github/scripts"
+git init -q "$SKILLS"; git init -q "$VERIFIER"
+for repo in "$SKILLS" "$VERIFIER"; do
+  cp "$ROOT/templates/eco-lock/eco-lock.sh" "$repo/.github/scripts/eco-lock.sh"
+  chmod +x "$repo/.github/scripts/eco-lock.sh"
+done
+printf '#!/usr/bin/env bash\n: > "%s"\n[ ! -e "%s" ]\n' "$VERIFY_MARK" "$VERIFY_FAIL" > "$VERIFIER/.github/scripts/verify-skills.sh"
+( cd "$VERIFIER" && bash .github/scripts/eco-lock.sh write >/dev/null )
 for id in alpha beta gamma; do emit_master "$id" v1; done
-relock
+emit_master delta v1 2                     # brand-new (like save-game) and flavor-2; enrolled in section 6
+relock                                     # once: reconcile only needs every enrolled id locked
 
 cat > "$LKCFG" <<EOF
 schema: lockkit/v1
 master: templates/eco-lock/eco-lock.sh
 targets:
   - name: skills
-    root: $SKILLS
+    root: $VERIFIER
     script: .github/scripts/eco-lock.sh
     lock: .eco-registry.lock
     verify: .github/scripts/verify-skills.sh
@@ -130,6 +141,10 @@ git -C "$CPP" push -q origin main
 export ORCH_CONFIG="$CONFIG" ORCH_REGISTRY="$REGISTRY" LOCKKIT_CONFIG="$LKCFG"
 orch() { bash "$ROOT/bin/orchestrator.sh" "$@"; }
 writer() { bash "$ROOT/lib/vendor.sh" --cpp-dir "$CPP" "$@"; }
+# Preflight-running verbs go straight to selfmanage.sh with output in a file (sets $out): the sandbox
+# caps tasks at 64 and gVisor counts the lock checker's short-lived pipeline tasks, leaving no room
+# for extra wrapper shells around it.
+verb() { bash "$ROOT/lib/selfmanage.sh" "$@" >"$TMP/verb.out" 2>&1; local rc=$?; out="$(cat "$TMP/verb.out")"; return "$rc"; }
 branch_now() { git -C "$CPP" branch --show-current; }
 ahead() { git -C "$CPP" rev-list --count main..HEAD; }
 changes() { git -C "$CPP" diff --name-status main HEAD; }
@@ -170,7 +185,13 @@ pass "dry-run: every payload and the manifest are ONE local commit; nothing push
 emit_master alpha v2                       # like swarm ...
 emit_master beta v2                        # ... and the subagent-orchestration change it depends on
 orch exclude gamma -- "fixture retire (like algorithmic-art)" >/dev/null 2>&1
-out="$(orch cpp-sync --execute --cpp-dir "$CPP" 2>&1)" || fail "sync execute" "$out"
+rm -rf "$GLOBAL/skills/gamma"             # a retired capability's master may be gone too
+touch "$VERIFY_FAIL"
+if verb cpp-sync --execute --cpp-dir "$CPP"; then fail "verify-skills gate" "a failing verifier should stop cpp-sync"; fi
+[ "$(branch_now)" = main ] && nothing_shipped || fail "verify-skills gate" "built or shipped despite a failing verifier"
+rm -f "$VERIFY_FAIL" "$VERIFY_MARK"
+pass "a failing verify-skills stops cpp-sync before anything is built"
+verb cpp-sync --execute --cpp-dir "$CPP" || fail "sync execute" "$out"
 [ -f "$VERIFY_MARK" ] || fail "verify-skills gate" "cpp-sync did not run the capability verifier"
 [ "$(pr_creates)" = 1 ] || fail "sync execute" "expected one 'gh pr create', got $(pr_creates)"
 [ "$(grep -c '^pr merge .*--auto --squash' "$GHLOG")" = 1 ] || fail "sync execute" "expected one auto-merge request"
@@ -233,16 +254,16 @@ git -C "$CPP" push -q origin main
 pass "a RED cpp integrity gate refuses the push"
 
 # --- 6. Per-id vendor: same gates as cpp-sync; a brand-new capability ships with its manifest row --
-emit_master epsilon v1 2; emit_master delta v1; relock
-printf '  - id: %s\n    state: enrolled\n    reason: "fixture"\n' epsilon delta >> "$REGISTRY"   # epsilon: flavor-2, unapproved
-if out="$(orch vendor --cpp-dir "$CPP" epsilon 2>&1)"; then fail "per-id gate" "unapproved flavor-2 should be refused"; fi
-grep -q 'preflight refused epsilon:.*supply-chain' <<<"$out" || fail "per-id gate" "$out"
-if out="$(orch vendor --cpp-dir "$CPP" gamma 2>&1)"; then fail "per-id gate" "excluded id should be refused"; fi
+printf '  - id: delta\n    state: enrolled\n    reason: "fixture"\n' >> "$REGISTRY"
+if verb vendor --cpp-dir "$CPP" delta; then fail "per-id gate" "unapproved flavor-2 should be refused"; fi
+grep -q 'preflight refused delta:.*supply-chain' <<<"$out" || fail "per-id gate" "$out"
+if verb vendor --cpp-dir "$CPP" gamma; then fail "per-id gate" "excluded id should be refused"; fi
 grep -q 'gamma is not enrolled' <<<"$out" || fail "per-id gate" "$out"
 [ "$(branch_now)" = main ] || fail "per-id gate" "built a change before the gate"
 pass "per-id vendor refuses an unapproved flavor-2 or non-enrolled capability before building"
 
-out="$(orch vendor --execute --cpp-dir "$CPP" delta 2>&1)" || fail "per-id new" "$out"
+orch approve delta >/dev/null 2>&1
+verb vendor --execute --cpp-dir "$CPP" delta || fail "per-id new" "$out"
 [ "$(pr_creates)" = 1 ] && [ "$(grep -c '^pr merge .*--auto --squash' "$GHLOG")" = 1 ] || fail "per-id new" "$(cat "$GHLOG")"
 pb="$(pushed_branches)"
 case "$pb" in orchestrator/vendor/delta-*) ;; *) fail "per-id new" "pushed: $pb" ;; esac
@@ -261,13 +282,15 @@ grep -q 'cpp-native; never removed' <<<"$out" && [ "$(branch_now)" = main ] || f
 pass "per-id delete never removes a cpp-native (unmarked) item"
 
 # --- 7. Status agrees with the guard: ANY open orchestrator PR (here a rollback) means "wait" -------
+delta_status() {   # delta_status <field> — one field of delta's status-matrix row
+  bash "$ROOT/lib/status.sh" --matrix --json >"$TMP/status.json" 2>/dev/null
+  python3 -c 'import json, sys; print({r["id"]: r for r in json.load(open(sys.argv[1]))}["delta"][sys.argv[2]])' "$TMP/status.json" "$1"
+}
 printf '#78 orchestrator/vendor/rollback-alpha-20261020-000000 https://example.invalid/cpp/pull/78\n' > "$GHOPEN"
-next="$(orch status --matrix --json 2>/dev/null \
-  | python3 -c 'import json, sys; print({r["id"]: r for r in json.load(sys.stdin)}["delta"]["next_action"])')"
+next="$(delta_status next_action)"
 [ "$next" = "wait for PR" ] || fail "status" "open rollback PR not treated as in flight: $next"
 touch "$GHFAIL"
-open="$(orch status --matrix --json 2>/dev/null \
-  | python3 -c 'import json, sys; print({r["id"]: r for r in json.load(sys.stdin)}["delta"]["open_pr_state"])')"
+open="$(delta_status open_pr_state)"
 rm -f "$GHFAIL"
 [ "$open" = "unknown" ] || fail "status" "an unreadable PR list should read as unknown, got: $open"
 pass "status matrix treats any open orchestrator PR as in flight, and an unreadable list as unknown"
