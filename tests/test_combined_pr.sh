@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
 # tests/test_combined_pr.sh — ADR 0002 regression: one orchestrator run = ONE cpp PR.
 #
-# Reproduces the 2026-10-20 incidents in a hermetic sandbox (throwaway skills repo, fake cpp with a
-# bare origin, stub gh):
+# Reproduces the 2026-10-20 incidents in a hermetic sandbox (throwaway masters, fake cpp with a bare
+# origin, stub gh):
 #   * cross-capability dependency (cpp #1054/#1055: swarm landed before subagent-orchestration) —
 #     two changed capabilities must ship in ONE commit / ONE PR;
 #   * removal vs manifest (cpp #1061/#1062) — a payload removal and its manifest row ship together.
-# Also proves: the real cpp-sync preflight (lockkit + capability verifier + reconcile + flavor-2 digest)
-# gates cpp-sync AND per-id vendor, one bad capability stops the whole PR, a RED integrity gate refuses
-# the push, an open orchestrator PR blocks another one (sync and rollback), an unreadable PR list fails
-# closed, and an in-sync run is a no-op. The execute path runs end to end against the sandbox only.
+# Also proves: the cpp-sync preflight (lockkit + verify-skills + reconcile + flavor-2 digest) gates
+# cpp-sync AND per-id vendor, one bad capability stops the whole PR, a RED integrity gate refuses the
+# push, only one orchestrator PR may be in flight, and an in-sync run is a no-op. The execute path runs
+# end to end against the sandbox only.
+#
+# The PR-verification sandbox (gVisor) caps the sandbox's HOST tasks at 64 and every short-lived
+# process costs one for a while, so this test keeps full orchestrator runs to the six that prove
+# end-to-end behavior and checks the shared PR guard at function level.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
@@ -22,35 +26,32 @@ CONFIG="$TMP/relationship.yml"; REGISTRY="$TMP/registry.yml"; LKCFG="$TMP/lockki
 VERIFY_MARK="$TMP/verify-skills.ran"; VERIFY_FAIL="$TMP/verify-skills.fail"
 MANIFEST_REL="quiver/tooling/eco-capability-sync/eco-capability-manifest.yml"
 export GHLOG="$TMP/gh.log" GHOPEN="$TMP/gh-open-prs" GHFAIL="$TMP/gh-list-fails"
-# No background maintenance/gc helpers: under the sandbox's 64-task cap, gVisor releases finished
-# tasks lazily, so every extra short-lived helper process counts against the bursts below.
-export GIT_CONFIG_COUNT=3 GIT_CONFIG_KEY_0=maintenance.auto GIT_CONFIG_VALUE_0=false \
-  GIT_CONFIG_KEY_1=gc.auto GIT_CONFIG_VALUE_1=0 GIT_CONFIG_KEY_2=receive.autogc GIT_CONFIG_VALUE_2=false
+# git's per-CPU pack/index worker threads and its maintenance/gc helpers each cost a sandbox task.
+export GIT_CONFIG_COUNT=5 GIT_CONFIG_KEY_0=maintenance.auto GIT_CONFIG_VALUE_0=false \
+  GIT_CONFIG_KEY_1=gc.auto GIT_CONFIG_VALUE_1=0 GIT_CONFIG_KEY_2=receive.autogc GIT_CONFIG_VALUE_2=false \
+  GIT_CONFIG_KEY_3=pack.threads GIT_CONFIG_VALUE_3=1 GIT_CONFIG_KEY_4=index.threads GIT_CONFIG_VALUE_4=1
 passes=0
 
 pass() { printf '  PASS %s\n' "$1"; passes=$((passes+1)); }
 fail() { printf '  FAIL %s: %s\n' "$1" "${2:-assertion failed}" >&2; exit 1; }
 
-# The PR-verification sandbox has no `make` and mounts its writable space noexec, so the stub `gh`
-# and the fixture cpp's `make verify` are exported functions (inherited by every child bash), not files.
+# The sandbox has no `make` and mounts its writable space noexec, so the stub `gh` and the fixture
+# cpp's `make verify` are exported functions (inherited by every child bash), not files.
 gh() {
   { printf '%s' "$*" | tr '\n' ' '; printf '\n'; } >> "$GHLOG"
   case "${1:-} ${2:-}" in
-    "pr list")
-      [ -f "$GHFAIL" ] && return 1
-      case "$*" in *".[].headRefName"*) awk '{print $2}' "$GHOPEN" ;; *) cat "$GHOPEN" ;; esac ;;
+    "pr list")   [ ! -f "$GHFAIL" ] || return 1; cat "$GHOPEN" ;;
     "pr create") echo "https://example.invalid/cpp/pull/$(grep -c '^pr create' "$GHLOG")" ;;
   esac
   return 0
 }
-make() { [ "${1:-}" = verify ] && [ ! -e RED ]; }   # fixture cpp integrity: GREEN unless RED is committed
+make() { [ "${1:-}" = verify ] && [ ! -e RED ] || return 2; }   # fixture integrity: exits 2 like a failing make
 export -f gh make
 : > "$GHLOG"; : > "$GHOPEN"
 
-# --- skills master repo (its real lock feeds reconcile) + the lockkit target ----------------------
-# The lockkit target is a metadata-free repo carrying the real lock writer and a verify-skills stub:
-# eco-lock's per-capability pipelines (covered by test_lockkit) overflow the verification sandbox's
-# 64-task cap when nested inside cpp-sync.
+# --- fixture masters (their real lock feeds reconcile) + the lockkit target ------------------------
+# The lockkit target is a metadata-free dir carrying the real lock writer and a verify-skills stub:
+# eco-lock's per-capability pipelines (covered by test_lockkit) would overflow the task cap here.
 emit_master() {   # emit_master <id> <payload-version> [flavor]
   local d="$GLOBAL/skills/$1"
   mkdir -p "$d"
@@ -68,19 +69,17 @@ EOF
   printf '#!/usr/bin/env bash\nexit 0\n' > "$d/install.sh"
   printf '# %s\n\nFixture payload %s.\n' "$1" "$2" > "$d/SKILL.md"
 }
-relock() { ( cd "$SKILLS" && bash .github/scripts/eco-lock.sh write >/dev/null ); }
 
 mkdir -p "$MCP" "$SKILLS/.github/scripts" "$VERIFIER/.github/scripts"
-git init -q "$SKILLS"; git init -q "$VERIFIER"
-for repo in "$SKILLS" "$VERIFIER"; do
-  cp "$ROOT/templates/eco-lock/eco-lock.sh" "$repo/.github/scripts/eco-lock.sh"
-  chmod +x "$repo/.github/scripts/eco-lock.sh"
+for dir in "$SKILLS" "$VERIFIER"; do
+  cp "$ROOT/templates/eco-lock/eco-lock.sh" "$dir/.github/scripts/eco-lock.sh"
+  chmod +x "$dir/.github/scripts/eco-lock.sh"
 done
 printf '#!/usr/bin/env bash\n: > "%s"\n[ ! -e "%s" ]\n' "$VERIFY_MARK" "$VERIFY_FAIL" > "$VERIFIER/.github/scripts/verify-skills.sh"
 ( cd "$VERIFIER" && bash .github/scripts/eco-lock.sh write >/dev/null )
 for id in alpha beta gamma; do emit_master "$id" v1; done
-emit_master delta v1 2                     # brand-new (like save-game) and flavor-2; enrolled in section 6
-relock                                     # once: reconcile only needs every enrolled id locked
+emit_master delta v1 2                     # brand-new (like save-game) and flavor-2; enrolled in section 5
+( cd "$SKILLS" && bash .github/scripts/eco-lock.sh write >/dev/null )   # reconcile needs enrolled ids locked
 
 cat > "$LKCFG" <<EOF
 schema: lockkit/v1
@@ -136,15 +135,15 @@ mkdir -p "$CPP/quiver/skills/cpp-native"
 printf '# cpp native\n' > "$CPP/quiver/skills/cpp-native/SKILL.md"
 git -C "$CPP" add -A; git -C "$CPP" commit -qm "fixture cpp base"
 git -C "$CPP" remote add origin "$ORIGIN"
-git -C "$CPP" push -q origin main
 
 export ORCH_CONFIG="$CONFIG" ORCH_REGISTRY="$REGISTRY" LOCKKIT_CONFIG="$LKCFG"
 orch() { bash "$ROOT/bin/orchestrator.sh" "$@"; }
-writer() { bash "$ROOT/lib/vendor.sh" --cpp-dir "$CPP" "$@"; }
-# Preflight-running verbs go straight to selfmanage.sh with output in a file (sets $out): the sandbox
-# caps tasks at 64 and gVisor counts the lock checker's short-lived pipeline tasks, leaving no room
-# for extra wrapper shells around it.
-verb() { bash "$ROOT/lib/selfmanage.sh" "$@" >"$TMP/verb.out" 2>&1; local rc=$?; out="$(cat "$TMP/verb.out")"; return "$rc"; }
+# cap <cmd...> — run a script as a direct child with its output in a file, then set $out (no capture
+# subshell idles around the writer's pipelines).
+cap() { "$@" >"$TMP/cmd.out" 2>&1; local rc=$?; out="$(cat "$TMP/cmd.out")"; return "$rc"; }
+writer() { cap bash "$ROOT/lib/vendor.sh" --cpp-dir "$CPP" "$@"; }
+verb() { cap bash "$ROOT/lib/selfmanage.sh" "$@"; }
+guard() { cap bash -c '. "$1/lib/common.sh"; orch_refuse_if_orchestrator_pr_open fixture/cpp orchestrator/vendor' _ "$ROOT"; }
 branch_now() { git -C "$CPP" branch --show-current; }
 ahead() { git -C "$CPP" rev-list --count main..HEAD; }
 changes() { git -C "$CPP" diff --name-status main HEAD; }
@@ -156,11 +155,10 @@ pushed_branches() { git -C "$ORIGIN" for-each-ref --format='%(refname:short)' re
 pr_creates() { grep -c '^pr create' "$GHLOG" || true; }
 nothing_shipped() { [ "$(pr_creates)" = 0 ] && [ -z "$(pushed_branches)" ]; }
 has_change() { printf '%s\n' "$1" | grep -qxF "$(printf '%s\t%s' "$2" "$3")"; }
-land() {   # simulate cpp squash-merging the pending branch: fast-forward main (+ origin), drop the branch
+land() {   # simulate cpp squash-merging the pending branch: fast-forward main, drop the branch
   local b r; b="$(branch_now)"
   git -C "$CPP" branch -f main HEAD >/dev/null; git -C "$CPP" checkout -q main
   [ "$b" = main ] || git -C "$CPP" branch -qD "$b"
-  git -C "$CPP" push -q origin main
   for r in $(pushed_branches); do git -C "$ORIGIN" update-ref -d "refs/heads/$r"; done
 }
 discard() {   # drop a dry-run / refused branch and any staged leftovers
@@ -168,9 +166,10 @@ discard() {   # drop a dry-run / refused branch and any staged leftovers
   git -C "$CPP" checkout -q -f main; git -C "$CPP" clean -qfd
   [ "$b" = main ] || git -C "$CPP" branch -qD "$b"
 }
+pushed_diff() { git -C "$ORIGIN" diff --name-status "$(git -C "$CPP" rev-parse main)" "$1"; }
 
 # --- 1. Dry-run: three new payloads + the manifest are ONE local commit; no push, no gh call ------
-out="$(writer --sync alpha beta gamma 2>&1)" || fail "dry-run" "$out"
+writer --sync alpha beta gamma || fail "dry-run" "$out"
 case "$(branch_now)" in orchestrator/vendor/sync-*) ;; *) fail "dry-run branch name" "$(branch_now)" ;; esac
 [ "$(ahead)" = 1 ] || fail "dry-run" "expected one commit, got $(ahead)"
 c="$(changes)"
@@ -191,6 +190,7 @@ if verb cpp-sync --execute --cpp-dir "$CPP"; then fail "verify-skills gate" "a f
 [ "$(branch_now)" = main ] && nothing_shipped || fail "verify-skills gate" "built or shipped despite a failing verifier"
 rm -f "$VERIFY_FAIL" "$VERIFY_MARK"
 pass "a failing verify-skills stops cpp-sync before anything is built"
+
 verb cpp-sync --execute --cpp-dir "$CPP" || fail "sync execute" "$out"
 [ -f "$VERIFY_MARK" ] || fail "verify-skills gate" "cpp-sync did not run the capability verifier"
 [ "$(pr_creates)" = 1 ] || fail "sync execute" "expected one 'gh pr create', got $(pr_creates)"
@@ -199,8 +199,8 @@ grep '^pr create' "$GHLOG" | grep -qF 'orchestrator sync (vendor: alpha, beta; r
   || fail "sync execute" "PR title does not name every change: $(grep '^pr create' "$GHLOG")"
 pb="$(pushed_branches)"
 case "$pb" in orchestrator/vendor/sync-*) ;; *) fail "sync execute" "pushed: $pb" ;; esac
-[ "$(git -C "$ORIGIN" rev-list --count "main..$pb")" = 1 ] || fail "sync execute" "pushed branch is not one commit"
-c="$(git -C "$ORIGIN" diff --name-status main "$pb")"
+[ "$(git -C "$ORIGIN" rev-list --count "$(git -C "$CPP" rev-parse main)..$pb")" = 1 ] || fail "sync execute" "pushed branch is not one commit"
+c="$(pushed_diff "$pb")"
 has_change "$c" M quiver/skills/alpha/SKILL.md || fail "sync execute" "alpha update missing: $c"
 has_change "$c" M quiver/skills/beta/SKILL.md  || fail "sync execute" "beta update missing: $c"
 has_change "$c" D quiver/skills/gamma/SKILL.md || fail "sync execute" "gamma removal missing: $c"
@@ -211,88 +211,70 @@ printf '%s\n' "$c" | grep -q 'cpp-native' && fail "sync execute" "cpp-native pay
 land
 pass "cpp-sync --execute: both updates, the removal, and the manifest ship as ONE PR (auto-merge requested once)"
 
-# --- 3. Idempotency: an in-sync run is a no-op — no commit, no gh call, no PR ----------------------
+# --- 3. Idempotency + one orchestrator PR in flight --------------------------------------------------
 : > "$GHLOG"
-out="$(writer --execute beta 2>&1)" || fail "in-sync" "$out"
+writer --execute beta || fail "in-sync" "$out"
 grep -q 'no changes — already in sync' <<<"$out" || fail "in-sync" "no-op message missing"
 [ "$(ahead)" = 0 ] && [ ! -s "$GHLOG" ] || fail "in-sync" "created a commit or called gh"
 discard
 pass "in-sync run is a no-op: no commit, no gh call, no PR"
 
-# --- 4. One orchestrator PR in flight: an open one blocks another; an unreadable list fails closed -
-emit_master alpha v3
+guard || fail "open-PR guard" "refused with no open PR: $out"
 printf '#77 orchestrator/vendor/sync-20261020-000000 https://example.invalid/cpp/pull/77\n' > "$GHOPEN"
-if out="$(writer --execute alpha 2>&1)"; then fail "open-PR guard" "execute should refuse"; fi
+if guard; then fail "open-PR guard" "should refuse while an orchestrator PR is open"; fi
 grep -q 'already has an open orchestrator PR' <<<"$out" || fail "open-PR guard" "$out"
-nothing_shipped || fail "open-PR guard" "shipped anyway"
-[ "$(changes)" = "$(printf 'M\tquiver/skills/alpha/SKILL.md')" ] \
-  || fail "per-id refresh" "an existing capability's refresh should touch only its payload: $(changes)"
-discard
 : > "$GHOPEN"; touch "$GHFAIL"
-bash -c '. "$1/lib/registry.sh"; reg_journal_set beta last_synced_cpp_sha "$2"' _ "$ROOT" "$(git -C "$CPP" rev-parse main~1)"
-if out="$(orch rollback --execute --cpp-dir "$CPP" beta 2>&1)"; then fail "open-PR guard" "rollback should refuse"; fi
+if guard; then fail "open-PR guard" "an unreadable PR list should refuse"; fi
 grep -q 'could not list open cpp PRs' <<<"$out" || fail "open-PR guard" "$out"
-nothing_shipped || fail "open-PR guard" "rollback shipped anyway"
-rm -f "$GHFAIL"; discard
-pass "an open orchestrator PR blocks another; rollback shares the guard; an unreadable PR list fails closed"
-pass "per-id refresh of an existing capability touches only its payload (no manifest churn)"
+rm -f "$GHFAIL"
+for f in lib/vendor.sh lib/recovery.sh; do
+  awk '/orch_refuse_if_orchestrator_pr_open/ {g=NR} /git -C "\$WORK" push/ {p=NR} END {exit (g && p && g < p) ? 0 : 1}' "$ROOT/$f" \
+    || fail "open-PR guard" "$f must refuse an open orchestrator PR before pushing"
+done
+grep -q 'orch_open_orchestrator_prs' "$ROOT/lib/status.sh" || fail "status" "status must use the guard's PR lister"
+pass "one orchestrator PR in flight: the guard refuses an open or unreadable PR list before every push; status shares it"
 
-# --- 5. Fail closed: one bad capability or a RED gate stops the WHOLE PR --------------------------
+# --- 4. Fail closed: one bad capability or a RED gate stops the WHOLE PR --------------------------
+emit_master alpha v3
 printf '\nSource: KleinPerkins/skills\n' >> "$GLOBAL/skills/beta/SKILL.md"     # zero-link violation
-if out="$(writer --sync --execute alpha beta 2>&1)"; then fail "fail closed" "zero-link violation should abort"; fi
+if writer --sync --execute alpha beta; then fail "fail closed" "zero-link violation should abort"; fi
 grep -q 'beta: payload tripped zero-link' <<<"$out" || fail "fail closed" "$out"
 nothing_shipped && [ "$(ahead)" = 0 ] || fail "fail closed" "alpha shipped or committed without beta"
 emit_master beta v2; discard
 pass "one capability tripping zero-link stops the whole PR (the other change does not ship alone)"
 
 : > "$CPP/RED"; git -C "$CPP" add RED; git -C "$CPP" commit -qm "fixture: red integrity"
-if out="$(writer --execute alpha 2>&1)"; then fail "red gate" "RED integrity should refuse"; fi
-grep -q 'gate RED' <<<"$out" || fail "red gate" "$out"
+if writer --execute alpha; then fail "red gate" "RED integrity should refuse"; fi
+grep -q 'gate RED' <<<"$out" || fail "red gate" "a check exiting 2 must read as RED: $out"
 nothing_shipped || fail "red gate" "pushed despite RED integrity"
+[ "$(changes)" = "$(printf 'M\tquiver/skills/alpha/SKILL.md')" ] \
+  || fail "per-id refresh" "an existing capability's refresh should touch only its payload: $(changes)"
 discard; git -C "$CPP" rm -q RED; git -C "$CPP" commit -qm "fixture: green integrity"
-git -C "$CPP" push -q origin main
-pass "a RED cpp integrity gate refuses the push"
+pass "a RED integrity gate (even a check exiting 2) refuses the push; a per-id refresh has no manifest churn"
 
-# --- 6. Per-id vendor: same gates as cpp-sync; a brand-new capability ships with its manifest row --
+# --- 5. Per-id vendor: same gates as cpp-sync; a brand-new capability ships with its manifest row --
 printf '  - id: delta\n    state: enrolled\n    reason: "fixture"\n' >> "$REGISTRY"
 if verb vendor --cpp-dir "$CPP" delta; then fail "per-id gate" "unapproved flavor-2 should be refused"; fi
 grep -q 'preflight refused delta:.*supply-chain' <<<"$out" || fail "per-id gate" "$out"
 if verb vendor --cpp-dir "$CPP" gamma; then fail "per-id gate" "excluded id should be refused"; fi
 grep -q 'gamma is not enrolled' <<<"$out" || fail "per-id gate" "$out"
-[ "$(branch_now)" = main ] || fail "per-id gate" "built a change before the gate"
-pass "per-id vendor refuses an unapproved flavor-2 or non-enrolled capability before building"
+if writer --delete cpp-native; then fail "native delete" "cpp-native removal should be refused"; fi
+grep -q 'cpp-native; never removed' <<<"$out" || fail "native delete" "$out"
+[ "$(branch_now)" = main ] && [ -f "$CPP/quiver/skills/cpp-native/SKILL.md" ] || fail "per-id gate" "built or touched something"
+pass "per-id vendor refuses unapproved flavor-2 and non-enrolled ids; cpp-native items are never removed"
 
 orch approve delta >/dev/null 2>&1
 verb vendor --execute --cpp-dir "$CPP" delta || fail "per-id new" "$out"
 [ "$(pr_creates)" = 1 ] && [ "$(grep -c '^pr merge .*--auto --squash' "$GHLOG")" = 1 ] || fail "per-id new" "$(cat "$GHLOG")"
 pb="$(pushed_branches)"
 case "$pb" in orchestrator/vendor/delta-*) ;; *) fail "per-id new" "pushed: $pb" ;; esac
-c="$(git -C "$ORIGIN" diff --name-status main "$pb")"
+c="$(pushed_diff "$pb")"
 has_change "$c" A quiver/skills/delta/SKILL.md || fail "per-id new" "payload missing: $c"
 has_change "$c" M "$MANIFEST_REL"              || fail "per-id new" "manifest row missing: $c"
 printf '%s\n' "$c" | grep -q 'quiver/skills/alpha/' && fail "per-id new" "pending alpha change leaked into a per-id PR"
 for id in alpha beta; do
   [ "$(git -C "$ORIGIN" show "$pb:$MANIFEST_REL" | row_of "$id")" = "$(manifest_at main | row_of "$id")" ] || fail "per-id new" "$id row changed"
 done
-land
 pass "per-id vendor of a brand-new capability: ONE PR with its payload and only its manifest row"
-
-if out="$(orch delete --cpp-dir "$CPP" cpp-native 2>&1)"; then fail "native delete" "cpp-native removal should be refused"; fi
-grep -q 'cpp-native; never removed' <<<"$out" && [ "$(branch_now)" = main ] || fail "native delete" "$out"
-pass "per-id delete never removes a cpp-native (unmarked) item"
-
-# --- 7. Status agrees with the guard: ANY open orchestrator PR (here a rollback) means "wait" -------
-delta_status() {   # delta_status <field> — one field of delta's status-matrix row
-  bash "$ROOT/lib/status.sh" --matrix --json >"$TMP/status.json" 2>/dev/null
-  python3 -c 'import json, sys; print({r["id"]: r for r in json.load(open(sys.argv[1]))}["delta"][sys.argv[2]])' "$TMP/status.json" "$1"
-}
-printf '#78 orchestrator/vendor/rollback-alpha-20261020-000000 https://example.invalid/cpp/pull/78\n' > "$GHOPEN"
-next="$(delta_status next_action)"
-[ "$next" = "wait for PR" ] || fail "status" "open rollback PR not treated as in flight: $next"
-touch "$GHFAIL"
-open="$(delta_status open_pr_state)"
-rm -f "$GHFAIL"
-[ "$open" = "unknown" ] || fail "status" "an unreadable PR list should read as unknown, got: $open"
-pass "status matrix treats any open orchestrator PR as in flight, and an unreadable list as unknown"
 
 printf 'test_combined_pr.sh: %d passed\n' "$passes"

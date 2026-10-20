@@ -76,22 +76,17 @@ lock_state() {
   [ "$saw" = 1 ] && printf 'absent\n' || printf 'no-lock\n'
 }
 
+# Any open orchestrator PR blocks every --execute until it lands (one in flight at a time, ADR 0002),
+# so it counts as in flight for every id; the same lister backs the execute guard.
 open_pr_state() {
-  local repo prefix refs
+  local repo prefix open
   [ "${ORCH_STATUS_SKIP_GH:-0}" = 1 ] && { printf 'unknown\n'; return 0; }
   command -v gh >/dev/null 2>&1 || { printf 'unknown\n'; return 0; }
   gh auth status >/dev/null 2>&1 || { printf 'unknown\n'; return 0; }
   repo="$(orch_cfg_get cpp_repo)"
   prefix="$(orch_cfg_get cpp_pr_branch_prefix)"; prefix="${prefix:-orchestrator/vendor}"
-  refs="$(gh pr list --repo "$repo" --state open --limit 200 --json headRefName --jq '.[].headRefName' 2>/dev/null)" \
-    || { printf 'unknown\n'; return 0; }
-  # Any open orchestrator PR blocks every --execute until it lands (one in flight at a time, ADR 0002),
-  # so it counts as in flight for every id.
-  if printf '%s\n' "$refs" | awk -v p="$prefix/" 'index($0, p) == 1 {found=1} END{exit found?0:1}'; then
-    printf 'open\n'
-  else
-    printf 'none\n'
-  fi
+  open="$(orch_open_orchestrator_prs "$repo" "$prefix" 2>/dev/null)" || { printf 'unknown\n'; return 0; }
+  [ -n "$open" ] && printf 'open\n' || printf 'none\n'
 }
 
 approval_state() {

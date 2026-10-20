@@ -34,13 +34,19 @@ orch_manifest_rel() {
   printf '%s/tooling/%s/eco-capability-manifest.yml\n' "$quiver" "${fixed%% *}"
 }
 
+# orch_open_orchestrator_prs <cpp_repo> <branch_prefix> — print "#<n> <head> <url>" for every open cpp PR
+# whose head is under the orchestrator prefix; rc != 0 when the list cannot be read. Orchestrator PRs
+# land one at a time (ADR 0002), so cpp never has to choose a landing order between two of them.
+orch_open_orchestrator_prs() {
+  gh pr list --repo "$1" --state open --limit 200 --json number,headRefName,url \
+    --jq ".[] | select(.headRefName | startswith(\"$2/\")) | \"#\(.number) \(.headRefName) \(.url)\""
+}
+
 # orch_refuse_if_orchestrator_pr_open <cpp_repo> <branch_prefix> — rc 1 (fail closed) when cpp already
-# has an open orchestrator PR or the open-PR list cannot be read. Orchestrator PRs land one at a time
-# (ADR 0002), so cpp never has to choose a landing order between two of them.
+# has an open orchestrator PR or the open-PR list cannot be read.
 orch_refuse_if_orchestrator_pr_open() {
-  local repo="$1" prefix="$2" open
-  if ! open="$(gh pr list --repo "$repo" --state open --limit 200 --json number,headRefName,url \
-        --jq ".[] | select(.headRefName | startswith(\"$prefix/\")) | \"#\(.number) \(.headRefName) \(.url)\"")"; then
+  local open
+  if ! open="$(orch_open_orchestrator_prs "$1" "$2")"; then
     orch_err "could not list open cpp PRs — refusing to open a possibly concurrent orchestrator PR"
     return 1
   fi

@@ -215,8 +215,9 @@ cmd_cpp_sync() {
   [ "$execute" = 1 ] && v_args+=(--execute)
   [ -n "$cpp_dir" ] && v_args+=(--cpp-dir "$cpp_dir")
   [ "$execute" = 1 ] || orch_log "cpp-sync DRY-RUN: building the ONE combined change (no push)"
+  # exec: nothing runs after the writer, and the PR-verification sandbox caps live tasks at 64.
   # shellcheck disable=SC2086
-  bash "$ORCH_ROOT/lib/vendor.sh" "${v_args[@]}" $PF_OK
+  exec bash "$ORCH_ROOT/lib/vendor.sh" "${v_args[@]}" $PF_OK
 }
 
 # per-id vendor entrypoint: the cpp-sync preflight for exactly one enrolled id. vendor.sh then ships
@@ -243,7 +244,7 @@ cmd_vendor() {
     return 1
   fi
   wf1_preflight || return 1
-  bash "$ORCH_ROOT/lib/vendor.sh" ${v_args[@]+"${v_args[@]}"} "$id"
+  exec bash "$ORCH_ROOT/lib/vendor.sh" ${v_args[@]+"${v_args[@]}"} "$id"
 }
 
 # ---- self-heal (bounded retry over orchestrator verifiers) ---------------------------------------
