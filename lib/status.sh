@@ -77,15 +77,16 @@ lock_state() {
 }
 
 open_pr_state() {
-  local id="$1" repo prefix refs
+  local repo prefix refs
   [ "${ORCH_STATUS_SKIP_GH:-0}" = 1 ] && { printf 'unknown\n'; return 0; }
   command -v gh >/dev/null 2>&1 || { printf 'unknown\n'; return 0; }
   gh auth status >/dev/null 2>&1 || { printf 'unknown\n'; return 0; }
   repo="$(orch_cfg_get cpp_repo)"
   prefix="$(orch_cfg_get cpp_pr_branch_prefix)"; prefix="${prefix:-orchestrator/vendor}"
   refs="$(gh pr list --repo "$repo" --state open --json headRefName --jq '.[].headRefName' 2>/dev/null || true)"
-  # Per-id branches name their id; a combined cpp-sync branch (sync-*) may carry any id.
-  if printf '%s\n' "$refs" | awk -v p="$prefix" -v id="$id" '$0 == p "/" id || $0 ~ ("^" p "/" id "-") || $0 ~ ("^" p "/rm-" id "-") || $0 ~ ("^" p "/sync-") {found=1} END{exit found?0:1}'; then
+  # Any open orchestrator PR blocks every --execute until it lands (one in flight at a time, ADR 0002),
+  # so it counts as in flight for every id.
+  if printf '%s\n' "$refs" | awk -v p="$prefix/" 'index($0, p) == 1 {found=1} END{exit found?0:1}'; then
     printf 'open\n'
   else
     printf 'none\n'
@@ -131,6 +132,7 @@ emit_rows() {
   local ids id master kind flavor meta current approved_raw approved_valid approval reg lock invalid
   local payload manifest pstate mstate open last_sha last_at action p
   ids="$( { reg_ids; payload_ids; manifest_ids; } | LC_ALL=C sort -u )"
+  open="$(open_pr_state)"
   while IFS= read -r id; do
     [ -n "$id" ] || continue
     master="$(master_dir "$id" || true)"
@@ -154,7 +156,6 @@ emit_rows() {
     if manifest_ids | awk -v id="$id" '$0==id{found=1} END{exit found?0:1}'; then manifest=1; else manifest=0; fi
     pstate="$(payload_state "$reg" "$payload" "$manifest")"
     [ "$manifest" = 1 ] && mstate=active || mstate=absent
-    open="$(open_pr_state "$id")"
     last_sha="$(reg_journal_raw "$id" last_synced_cpp_sha)"
     last_at="$(reg_journal_raw "$id" last_synced_at)"
     invalid="$(reg_journal_invalid_fields "$id" | paste -sd ',' -)"

@@ -36,7 +36,9 @@ cat > "$FAKEBIN/gh" <<EOF
 #!/usr/bin/env bash
 { printf '%s' "\$*" | tr '\n' ' '; printf '\n'; } >> "$GHLOG"
 case "\${1:-} \${2:-}" in
-  "pr list")   [ -f "$GHFAIL" ] && exit 1; cat "$GHOPEN" 2>/dev/null; exit 0 ;;
+  "pr list")   [ -f "$GHFAIL" ] && exit 1
+               case "\$*" in *".[].headRefName"*) awk '{print \$2}' "$GHOPEN" ;; *) cat "$GHOPEN" ;; esac
+               exit 0 ;;
   "pr create") echo "https://example.invalid/cpp/pull/\$(grep -c '^pr create' "$GHLOG")"; exit 0 ;;
 esac
 exit 0
@@ -300,5 +302,16 @@ if out="$(orch delete --cpp-dir "$CPP" cpp-native 2>&1)"; then fail "native dele
 grep -q 'cpp-native; never removed' <<<"$out" || fail "native delete" "$out"
 [ "$(branch_now)" = main ] && [ -f "$CPP/quiver/skills/cpp-native/SKILL.md" ] || fail "native delete" "cpp-native touched"
 pass "per-id delete ships the removal with its manifest row; cpp-native items are refused"
+
+# --- 8. Status agrees with the guard: ANY open orchestrator PR (here a rollback) means "wait" -------
+next_for() {
+  orch status --matrix --json 2>/dev/null \
+    | python3 -c 'import json, sys; print({r["id"]: r for r in json.load(sys.stdin)}[sys.argv[1]]["next_action"])' "$1"
+}
+printf '#78 orchestrator/vendor/rollback-alpha-20261020-000000 https://example.invalid/cpp/pull/78\n' > "$GHOPEN"
+[ "$(next_for epsilon)" = "wait for PR" ] || fail "status" "open rollback PR not treated as in flight: $(next_for epsilon)"
+: > "$GHOPEN"
+[ "$(next_for epsilon)" = "cpp-sync --execute" ] || fail "status" "missing payload should point at cpp-sync: $(next_for epsilon)"
+pass "status matrix waits on any open orchestrator PR, else points mismatches at cpp-sync --execute"
 
 printf 'test_combined_pr.sh: %d passed\n' "$passes"
