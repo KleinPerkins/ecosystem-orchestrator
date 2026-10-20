@@ -83,7 +83,8 @@ open_pr_state() {
   gh auth status >/dev/null 2>&1 || { printf 'unknown\n'; return 0; }
   repo="$(orch_cfg_get cpp_repo)"
   prefix="$(orch_cfg_get cpp_pr_branch_prefix)"; prefix="${prefix:-orchestrator/vendor}"
-  refs="$(gh pr list --repo "$repo" --state open --json headRefName --jq '.[].headRefName' 2>/dev/null || true)"
+  refs="$(gh pr list --repo "$repo" --state open --limit 200 --json headRefName --jq '.[].headRefName' 2>/dev/null)" \
+    || { printf 'unknown\n'; return 0; }
   # Any open orchestrator PR blocks every --execute until it lands (one in flight at a time, ADR 0002),
   # so it counts as in flight for every id.
   if printf '%s\n' "$refs" | awk -v p="$prefix/" 'index($0, p) == 1 {found=1} END{exit found?0:1}'; then

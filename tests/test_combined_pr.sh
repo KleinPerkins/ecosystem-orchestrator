@@ -265,6 +265,11 @@ printf '#78 orchestrator/vendor/rollback-alpha-20261020-000000 https://example.i
 next="$(orch status --matrix --json 2>/dev/null \
   | python3 -c 'import json, sys; print({r["id"]: r for r in json.load(sys.stdin)}["delta"]["next_action"])')"
 [ "$next" = "wait for PR" ] || fail "status" "open rollback PR not treated as in flight: $next"
-pass "status matrix treats any open orchestrator PR as in flight"
+touch "$GHFAIL"
+open="$(orch status --matrix --json 2>/dev/null \
+  | python3 -c 'import json, sys; print({r["id"]: r for r in json.load(sys.stdin)}["delta"]["open_pr_state"])')"
+rm -f "$GHFAIL"
+[ "$open" = "unknown" ] || fail "status" "an unreadable PR list should read as unknown, got: $open"
+pass "status matrix treats any open orchestrator PR as in flight, and an unreadable list as unknown"
 
 printf 'test_combined_pr.sh: %d passed\n' "$passes"
