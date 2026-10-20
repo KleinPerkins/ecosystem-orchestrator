@@ -125,8 +125,9 @@ cmd_rollback() {
   fi
   [ "$gate" = "red" ] && { orch_err "gate RED — refusing to push rollback PR. Branch kept: $branch"; return 1; }
   command -v gh >/dev/null 2>&1 || { orch_err "gh not available; cannot open rollback PR"; return 1; }
-  git -C "$WORK" push -u origin "$branch" >/dev/null 2>&1 || { orch_err "push failed"; return 1; }
   repo="$(orch_cfg_get cpp_repo)"
+  orch_refuse_if_orchestrator_pr_open "$repo" "$PREFIX" || { orch_err "rollback branch kept locally: $branch"; return 1; }
+  git -C "$WORK" push -u origin "$branch" >/dev/null 2>&1 || { orch_err "push failed"; return 1; }
   body="Automated rollback by the ecosystem orchestrator. Restores $rel from trusted cpp sha $sha. Local cpp-integrity gate: $gate."
   pr_url="$(gh pr create --repo "$repo" --base "$DEFAULT_BRANCH" --head "$branch" --title "$msg" --body "$body" 2>/dev/null || true)"
   [ -n "$pr_url" ] || { orch_err "rollback PR create failed"; return 1; }

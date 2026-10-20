@@ -271,7 +271,7 @@ if [ -n "$FAILED" ]; then
 fi
 
 # The manifest is regenerated INSIDE this same change (never its own PR): cpp-sync rewrites the
-# active set; per-id runs touch only the named id's row.
+# active set; per-id runs touch only the named id's row. manifest.sh writes AND stages it.
 m_args=(--cpp-dir "$WORK")
 if [ "$SYNC" = 1 ]; then m_args+=(${V_IDS[@]+"${V_IDS[@]}"})
 elif [ "$DELETE" = 1 ]; then m_args+=(--keep-existing --drop "${args[0]}")
@@ -352,20 +352,9 @@ fi
 if [ "$GATE" = "red" ]; then orch_err "gate RED — refusing to push a failing PR (Deviation-2). Branch kept: $BRANCH"; exit 1; fi
 command -v gh >/dev/null 2>&1 || { orch_err "gh not available; cannot open PR"; exit 1; }
 CPP_REPO="$(orch_cfg_get cpp_repo)"
-
-# One orchestrator PR in flight at a time: every orchestrator PR rewrites the shared manifest, so a
+# One orchestrator PR in flight at a time: every sync/vendor PR rewrites the shared manifest, so a
 # second one would duplicate or conflict with it, and legacy per-capability PRs must land first.
-# Fail closed when the open-PR list cannot be read.
-if ! OPEN_PRS="$(gh pr list --repo "$CPP_REPO" --state open --limit 200 --json number,headRefName,url \
-      --jq ".[] | select(.headRefName | startswith(\"$PREFIX/\")) | \"#\(.number) \(.headRefName) \(.url)\"")"; then
-  orch_err "could not list open cpp PRs — refusing to open a possibly duplicate PR. Branch kept: $BRANCH"; exit 1
-fi
-if [ -n "$OPEN_PRS" ]; then
-  orch_err "cpp already has an open orchestrator PR — refusing to open another (they share the capability manifest):"
-  printf '%s\n' "$OPEN_PRS" | sed 's/^/    /' >&2
-  orch_err "wait for it to merge (or close it), then re-run. Nothing was pushed."
-  exit 1
-fi
+orch_refuse_if_orchestrator_pr_open "$CPP_REPO" "$PREFIX" || { orch_err "Branch kept locally: $BRANCH"; exit 1; }
 
 git -C "$WORK" push -u origin "$BRANCH" >/dev/null 2>&1 || { orch_err "push failed"; exit 1; }
 PR_BODY="Automated by the ecosystem orchestrator (LD-authored, quiver-only). Local cpp-integrity-engine gate: $GATE.

@@ -68,7 +68,8 @@ Alternatives considered:
 - **Idempotency and open PRs.** A run with no changes against cpp main is a no-op and opens nothing.
   `--execute` refuses while ANY orchestrator PR is open in cpp — including legacy per-capability PRs —
   because every orchestrator PR rewrites the shared manifest; if the open-PR list cannot be read, it
-  also refuses. Wait for the open PR to merge (or close it), then re-run. `quarantine` stops the
+  also refuses. `rollback --execute` follows the same one-in-flight rule so a restore never races a
+  sync. Wait for the open PR to merge (or close it), then re-run. `quarantine` stops the
   line: it closes every in-flight orchestrator PR, then ships the removal as the only PR; the next
   `cpp-sync --execute` re-delivers anything a closed PR carried.
 - The status matrix treats an open `sync-*` PR as in flight for every id and points every

@@ -151,6 +151,7 @@ for id in alpha beta gamma; do orch enroll "$id" -- "fixture enroll" >/dev/null 
 orch cpp-sync --cpp-dir "$CPP" >/dev/null 2>&1 || fail "bootstrap sync" "dry-run failed"
 [ "$(ahead)" = 1 ] || fail "bootstrap sync" "expected one commit"
 land
+BOOT_SHA="$(git -C "$CPP" rev-parse main)"
 [ "$(manifest_at main | items_of | paste -sd' ' -)" = "alpha beta gamma" ] || fail "bootstrap manifest" "items mismatch"
 pass "bootstrap: first sync lands three payloads and the manifest in one commit"
 
@@ -211,12 +212,18 @@ grep -q 'already has an open orchestrator PR' <<<"$out" || fail "open-PR guard" 
 [ "$(pr_creates)" = 0 ] || fail "open-PR guard" "opened a PR anyway"
 [ -z "$(pushed_branches)" ] || fail "open-PR guard" "pushed a branch anyway"
 discard
+ORCH_CONFIG="$CONFIG" ORCH_REGISTRY="$REGISTRY" bash -c \
+  '. "$1/lib/registry.sh"; reg_journal_set alpha last_synced_cpp_sha "$2"' _ "$ROOT" "$BOOT_SHA"
+if out="$(orch rollback --execute --cpp-dir "$CPP" alpha 2>&1)"; then fail "open-PR guard" "rollback should refuse too"; fi
+grep -q 'already has an open orchestrator PR' <<<"$out" || fail "open-PR guard" "$out"
+[ "$(pr_creates)" = 0 ] && [ -z "$(pushed_branches)" ] || fail "open-PR guard" "rollback pushed anyway"
+discard
 : > "$GHOPEN"; touch "$GHFAIL"
 if out="$(orch cpp-sync --execute --cpp-dir "$CPP" 2>&1)"; then fail "open-PR guard" "unreadable PR list should refuse"; fi
 grep -q 'could not list open cpp PRs' <<<"$out" || fail "open-PR guard" "$out"
 [ "$(pr_creates)" = 0 ] && [ -z "$(pushed_branches)" ] || fail "open-PR guard" "pushed despite unreadable PR list"
 rm -f "$GHFAIL"; discard
-pass "an open orchestrator PR blocks a second one; an unreadable PR list fails closed"
+pass "an open orchestrator PR blocks a second one (sync and rollback); an unreadable PR list fails closed"
 
 # --- 5. Fail closed: one bad capability or a RED gate stops the WHOLE PR --------------------------
 printf '\nSource: KleinPerkins/skills\n' >> "$GLOBAL/skills/beta/SKILL.md"     # zero-link violation
