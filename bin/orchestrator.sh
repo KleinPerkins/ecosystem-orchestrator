@@ -8,11 +8,14 @@
 #   status [--matrix]      registry enrollment state + cpp presence per id (B1b)
 #   repair                 refresh derivable journal state from observed cpp main
 #   rollback <id>          restore a payload from last_synced_cpp_sha via a governed cpp PR
-#   quarantine <id> -- <r> close in-flight PRs, exclude, delete-propagate, regenerate manifest
+#   quarantine <id> -- <r> close in-flight orchestrator PRs, exclude, remove payload + manifest row (one PR)
 #   lockkit check|write|diff [target...]  verify/propagate the shared eco-lock normalizer
-#   vendor <id>        vendor a global capability into cpp via a governed PR (WS-7)
-#   delete <id>        propagate a master delete via a governed cpp deletion PR (WS-7)
-#   cpp-sync           registry-driven sync of enrolled capabilities into cpp (WF2/B4)
+#   cpp-sync [--execute]   registry-driven sync into cpp (WF2/B4): EVERY vendor + delete change and the
+#                          matching manifest update go out together as ONE governed PR (ADR 0002)
+#   vendor [--execute] <id>  one enrolled capability (same preflight as cpp-sync): payload + its manifest row, one PR
+#   delete [--execute] <id>  remove one vendored payload: payload removal + its manifest row, one PR
+#                          (cpp-writing verbs are DRY-RUN unless --execute; --execute refuses while any
+#                          orchestrator PR is still open in cpp)
 #   chaos-shim-sync    DRY-RUN/execute google-kit shim delivery to the configured chaos-labs target
 #   reconcile          AUTHORITY: registry.yml <-> committed .eco-registry.lock (registry wins; B2)
 #   consistency [id..] verify master<->cpp vendored-payload content is in sync (Decision A control)
@@ -31,7 +34,7 @@ ORCH_BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 # shellcheck source=../lib/payload.sh
 . "$ORCH_BIN_DIR/../lib/payload.sh"
 
-cmd_help() { sed -n '2,18p' "$0"; }
+cmd_help() { awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; }
 
 # ---- WF1/B1b: enrollment verbs (mutate the registry SoT) -----------------------------------------
 cmd_enroll()  { _reg_verb enroll  enrolled "$@"; }
@@ -234,7 +237,7 @@ cmd_doctor() {
 }
 
 # --- WS-7 (vendor/delete) and WS-8 (dedup) and WS-9 (sync/self-heal/install) fill these in. ---
-cmd_vendor()   { bash "$ORCH_BIN_DIR/../lib/vendor.sh" "$@"; }
+cmd_vendor()   { bash "$ORCH_BIN_DIR/../lib/selfmanage.sh" vendor "$@"; }
 cmd_delete()   { bash "$ORCH_BIN_DIR/../lib/vendor.sh" --delete "$@"; }
 cmd_consistency() { bash "$ORCH_BIN_DIR/../lib/consistency.sh" "$@"; }
 cmd_reconcile() { bash "$ORCH_BIN_DIR/../lib/reconcile.sh" "$@"; }

@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # lib/selfmanage.sh — orchestrator self-management (reorg-v2 WS-9 / ORCH-C). Subcommands:
 #   install     install triggers (Cursor sessionStart hook + launchd agent) + state. Idempotent.
-#   cpp-sync    registry-driven sync of enrolled capabilities into cpp (WF2/B4). PREFLIGHT (kind /
-#               enabled_kinds / zero-link / cpp-integrity) then vendor; set-diff delete-propagation
-#               for excluded/demoted ids (denylist-protected). DRY-RUN by default; --execute lands PRs.
+#   cpp-sync    registry-driven sync of enrolled capabilities into cpp (WF2/B4). PREFLIGHT (lockkit /
+#               reconcile / kind / enabled_kinds / flavor-2 digest), then ONE vendor.sh --sync change:
+#               every vendor + delete-propagation (excluded/demoted ids, denylist-protected) + the
+#               manifest in a single PR (ADR 0002). DRY-RUN by default; --execute opens that one PR.
+#   vendor      per-id: the same preflight for exactly one enrolled id, then ONE PR carrying its
+#               payload and its manifest row together.
 #   self-heal   bounded retry loop (N=3) over orchestrator verifiers; heals a stale work clone.
 set -uo pipefail
 SM_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
@@ -148,96 +151,100 @@ preflight_supply_chain() {
   return 0
 }
 
-# cpp-sync entrypoint. Preflight first (no pushes); only a fully-clear preflight proceeds to --execute.
-cmd_cpp_sync() {
-  local execute=0; [ "${1:-}" = "--execute" ] && execute=1
-  orch_log "cpp-sync WF1 preflight: lockkit check + registry reconcile"
+# WF1 half of the preflight (B2/B3): shared metadata-lock parity incl. each capability repo's own
+# verifier (verify-skills / verify-capabilities, via lockkit check) + registry<->lock authority.
+wf1_preflight() {
+  orch_log "WF1 preflight: lockkit check (incl. capability verifiers) + registry reconcile"
   bash "$ORCH_ROOT/lib/lockkit.sh" check || return 1
   bash "$ORCH_ROOT/lib/reconcile.sh" >/dev/null || return 1
   reg_assert_schema || return 1
-  local enabled denylist; enabled=" $(orch_cfg_get enabled_kinds) "; [ "$enabled" = "  " ] && enabled=" skill mcp "
-  denylist=" $(orch_cfg_get cpp_sync_denylist) "
-  local enrolled; enrolled="$(managed_ids)"
+}
 
-  # ---- Preflight: cheap kind gates, then a dry-run vendor (zero-link + cpp-integrity) per ok id ----
-  local ok="" skip="" block="" id kind
-  while IFS= read -r id; do
+# wf2_gate_ids <id>... — cheap per-id WF2 gates. Sets PF_OK / PF_SKIP / PF_BLOCK (space-prefixed).
+# Payload build, zero-link and cpp integrity run afterwards inside vendor.sh, on the combined change.
+wf2_gate_ids() {
+  local enabled id kind
+  enabled=" $(orch_cfg_get enabled_kinds) "; [ "$enabled" = "  " ] && enabled=" skill mcp "
+  PF_OK="" PF_SKIP="" PF_BLOCK=""
+  for id in "$@"; do
     [ -n "$id" ] || continue
     kind="$(_master_kind "$id" || true)"
-    if [ -z "$kind" ]; then block="$block $id(no-master)"; continue; fi
-    case "$enabled" in *" $kind "*) ;; *) skip="$skip $id($kind!enabled_kinds)"; continue ;; esac        # (1)
-    if ! payload_cpp_kind_for_kind "$kind" >/dev/null 2>&1; then block="$block $id($kind!vendorable)"; continue; fi  # (2)
-    preflight_supply_chain "$id" || { block="$block $id(supply-chain)"; continue; }                      # (5)
-    ok="$ok $id"
-  done <<< "$enrolled"
+    if [ -z "$kind" ]; then PF_BLOCK="$PF_BLOCK $id(no-master)"; continue; fi
+    case "$enabled" in *" $kind "*) ;; *) PF_SKIP="$PF_SKIP $id($kind!enabled_kinds)"; continue ;; esac   # (1)
+    if ! payload_cpp_kind_for_kind "$kind" >/dev/null 2>&1; then PF_BLOCK="$PF_BLOCK $id($kind!vendorable)"; continue; fi  # (2)
+    preflight_supply_chain "$id" || { PF_BLOCK="$PF_BLOCK $id(supply-chain)"; continue; }              # (5)
+    PF_OK="$PF_OK $id"
+  done
+}
+
+# cpp-sync entrypoint. Preflight first (no pushes); only a fully-clear preflight reaches vendor.sh,
+# which builds the whole run as ONE change and (with --execute) opens ONE PR.
+cmd_cpp_sync() {
+  local execute=0 cpp_dir=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --execute) execute=1 ;;
+      --cpp-dir) cpp_dir="${2:-}"; shift ;;
+      *) orch_err "usage: orchestrator cpp-sync [--execute] [--cpp-dir DIR]"; return 2 ;;
+    esac; shift
+  done
+  wf1_preflight || return 1
+  # shellcheck disable=SC2046
+  wf2_gate_ids $(managed_ids)
 
   if [ "${ORCH_CPP_SYNC_PREFLIGHT_ONLY:-0}" = 1 ]; then
-    orch_log "cpp-sync preflight-only: OK=[${ok# }] SKIP=[${skip# }] BLOCK=[${block# }]"
-    if [ -n "${block# }" ]; then
-      orch_err "cpp-sync: preflight BLOCK set is non-empty -> aborting before any push:${block}"
+    orch_log "cpp-sync preflight-only: OK=[${PF_OK# }] SKIP=[${PF_SKIP# }] BLOCK=[${PF_BLOCK# }]"
+    if [ -n "${PF_BLOCK# }" ]; then
+      orch_err "cpp-sync: preflight BLOCK set is non-empty -> aborting before any push:${PF_BLOCK}"
       return 1
     fi
     return 0
   fi
 
-  # (3)+(4): dry-run vendor builds the payload, asserts zero-link, runs cpp's integrity engine and
-  # refuses RED. A non-zero dry-run for an ok id is a hard block (moves it out of the executable set).
-  local ok2="" rc_pf=0
-  for id in $ok; do
-    if bash "$ORCH_ROOT/lib/vendor.sh" "$id" >/tmp/orch-pf.$$ 2>&1; then ok2="$ok2 $id"
-    else block="$block $id(preflight)"; orch_warn "preflight FAILED for $id:"; sed 's/^/    | /' /tmp/orch-pf.$$ | tail -8 >&2; fi
-  done
-  rm -f /tmp/orch-pf.$$
-  ok="$ok2"
-
-  orch_log "cpp-sync preflight: OK=[${ok# }] SKIP=[${skip# }] BLOCK=[${block# }]"
-  if [ -n "${block# }" ]; then
-    orch_err "cpp-sync: preflight BLOCK set is non-empty -> aborting before any push:${block}"
+  orch_log "cpp-sync preflight: OK=[${PF_OK# }] SKIP=[${PF_SKIP# }] BLOCK=[${PF_BLOCK# }]"
+  if [ -n "${PF_BLOCK# }" ]; then
+    orch_err "cpp-sync: preflight BLOCK set is non-empty -> aborting before any push:${PF_BLOCK}"
     return 1
   fi
 
-  # ---- Delete-propagation set-diff: vendored-in-cpp but NOT enrolled-for-cpp (excluded/demoted/
-  # gone), minus the denylist (orchestrator-owned tooling). Computed against the on-disk cpp worktree.
-  local cpp quiver; cpp="$(orch_expand "$(orch_cfg_get ld_cpp_worktree)")"
-  quiver="$(orch_cfg_get cpp_quiver_path)"; quiver="${quiver:-quiver}"
-  local enrolled_enabled=" $ok "   # ok = enrolled AND kind in enabled_kinds AND preflight-clean
-  local to_delete="" d vid
-  if [ -d "$cpp/$quiver" ]; then
-    for d in "$cpp/$quiver"/*/*; do
-      [ -e "$d" ] || continue
-      # ONLY orchestrator-vendored payloads are delete-candidates. The VENDORED.md marker (written by
-      # payload_emit_vendored_md) distinguishes our copies from cpp-NATIVE quiver items (council,
-      # quickhost, ...), which the orchestrator must never touch. This bounds the delete blast radius
-      # to ld-owned payloads (the cpp-side reconciler enforces the same invariant independently, B6).
-      [ -f "$d/VENDORED.md" ] || continue
-      vid="$(basename "$d")"
-      case "$denylist" in *" $vid "*) continue ;; esac
-      case "$enrolled_enabled" in *" $vid "*) continue ;; esac
-      to_delete="$to_delete $vid"
-    done
-  fi
+  # ONE change for the whole run (ADR 0002): vendor.sh --sync vendors the OK set (enrolled AND kind in
+  # enabled_kinds AND gate-clean), delete-propagates every other orchestrator-marked payload against
+  # the fresh cpp clone, and regenerates the manifest — all in one commit/PR. Any capability that
+  # fails to build or trips zero-link, or a RED integrity gate, stops the whole run before any push.
+  local v_args=(--sync)
+  [ "$execute" = 1 ] && v_args+=(--execute)
+  [ -n "$cpp_dir" ] && v_args+=(--cpp-dir "$cpp_dir")
+  [ "$execute" = 1 ] || orch_log "cpp-sync DRY-RUN: building the ONE combined change (no push)"
+  # exec: nothing runs after the writer, and the PR-verification sandbox caps live tasks at 64.
+  # shellcheck disable=SC2086
+  exec bash "$ORCH_ROOT/lib/vendor.sh" "${v_args[@]}" $PF_OK
+}
 
-  # ---- Execute (or report dry-run) ----
-  # The manifest (B5) is regenerated as ONE atomic PR AFTER the per-id payload PRs, listing exactly
-  # the `ok` set under items: (eventual consistency is safe — the cpp reconciler warns, never prunes,
-  # on a not-yet-landed payload). DRY-RUN does both as dry-runs so the operator sees the full plan.
-  local rc=0
-  if [ "$execute" != 1 ]; then
-    orch_log "cpp-sync DRY-RUN: would vendor:${ok:- (none)}; would delete:${to_delete:- (none)}. Re-run with --execute."
-    bash "$ORCH_ROOT/lib/manifest.sh" $ok || rc=1
-    return "$rc"
+# per-id vendor entrypoint: the cpp-sync preflight for exactly one enrolled id. vendor.sh then ships
+# its payload together with its manifest row, so a per-id run can activate a capability only after the
+# same gates cpp-sync applies.
+cmd_vendor() {
+  local v_args=() id=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --execute|--break-glass-admin) v_args+=("$1") ;;
+      --cpp-dir) v_args+=(--cpp-dir "${2:-}"); shift ;;
+      -*) orch_err "vendor: unknown flag: $1"; return 2 ;;
+      *) [ -z "$id" ] || { orch_err "vendor takes exactly one id (cpp-sync ships many together)"; return 2; }; id="$1" ;;
+    esac; shift
+  done
+  [ -n "$id" ] || { orch_err "usage: orchestrator vendor [--execute] [--cpp-dir DIR] <id>"; return 2; }
+  # Cheap per-id gates first, then the (slow) WF1 lock/verifier preflight; all pass before any build.
+  reg_assert_schema || return 1
+  [ "$(reg_state "$id")" = "enrolled" ] \
+    || { orch_err "vendor: $id is not enrolled for cpp (run 'orchestrator enroll $id -- <reason>' first)"; return 1; }
+  wf2_gate_ids "$id"
+  if [ -n "${PF_BLOCK# }${PF_SKIP# }" ]; then
+    orch_err "vendor: preflight refused $id:${PF_BLOCK}${PF_SKIP} -> nothing built or pushed"
+    return 1
   fi
-  for id in $ok; do
-    orch_log "cpp-sync: vendor $id (execute)"
-    bash "$ORCH_ROOT/lib/vendor.sh" --execute "$id" || rc=1
-  done
-  for vid in $to_delete; do
-    orch_log "cpp-sync: delete-propagate $vid (execute)"
-    bash "$ORCH_ROOT/lib/vendor.sh" --delete --execute "$vid" || rc=1
-  done
-  orch_log "cpp-sync: regenerate data-plane manifest (atomic PR, after payloads)"
-  bash "$ORCH_ROOT/lib/manifest.sh" --execute $ok || rc=1
-  return "$rc"
+  wf1_preflight || return 1
+  exec bash "$ORCH_ROOT/lib/vendor.sh" ${v_args[@]+"${v_args[@]}"} "$id"
 }
 
 # ---- self-heal (bounded retry over orchestrator verifiers) ---------------------------------------
@@ -268,6 +275,7 @@ SUB="${1:-}"; shift || true
 case "$SUB" in
   install)   cmd_install "$@" ;;
   cpp-sync)  cmd_cpp_sync "$@" ;;
+  vendor)    cmd_vendor "$@" ;;
   self-heal) cmd_selfheal "$@" ;;
-  *) orch_err "selfmanage: unknown subcommand '$SUB' (install|cpp-sync|self-heal)"; exit 2 ;;
+  *) orch_err "selfmanage: unknown subcommand '$SUB' (install|cpp-sync|vendor|self-heal)"; exit 2 ;;
 esac

@@ -11,7 +11,7 @@ Two contained workflows with a hard boundary — a registration change never aut
 - **WF1 — registration + enforcement.** Maintain a trustworthy registry of global capabilities and the
   active layer that keeps it honest. Decoupled from delivery.
 - **WF2 — independent sync to cpp.** Read the registry and propagate enabled enrolled capabilities into
-  cpp's data plane via governed auto-merge PRs.
+  cpp's data plane via ONE governed auto-merge PR per run (ADR 0002).
 
 Canonical end-state doc: `~/dev/OPERATING-MANUAL.md` §10h. The cpp-side mechanics live under cpp
 governance (`_ops/bin/eco-capability-reconcile.sh`, `_ops/runbooks/eco-capability-sync.md`).
@@ -42,18 +42,28 @@ repair label malformed or stale journal state instead of treating it as authorit
 
 | Verb | What it does |
 | --- | --- |
-| `cpp-sync` | DRY-RUN: preflight every enrolled id, report the vendor/delete/manifest plan |
-| `cpp-sync --execute` | vendor the ok set → delete-propagate de-enrolled → ONE atomic manifest PR (auto-merge on green) |
+| `cpp-sync` | DRY-RUN: preflight every enrolled id, build the ONE combined change locally, report what that PR would contain |
+| `cpp-sync --execute` | open ONE cpp PR with every vendor + delete-propagation change and the matching manifest update (auto-merge on green) |
+| `vendor [--execute] <id>` | one enrolled capability, same preflight as `cpp-sync`: its payload + its manifest row in one PR |
+| `delete [--execute] <id>` | remove one orchestrator-marked payload: the removal + its manifest row in one PR |
 | `rollback [--execute] <id>` | restore `quiver/<cat>/<id>` from `last_synced_cpp_sha` through a governed data-plane PR |
-| `quarantine <id> -- <reason>` | close in-flight per-id/manifest PRs, mark excluded, delete-propagate, regenerate manifest |
+| `quarantine <id> -- <reason>` | close in-flight orchestrator PRs, mark excluded, remove the payload + its manifest row in one PR |
 | `chaos-shim-sync [--execute]` | write/repair the configured chaos-labs google-kit pointer/env shim; dry-run by default |
 
+**One PR per run (ADR 0002).** Related capability changes ship together: one `cpp-sync --execute`
+produces a single cpp PR (branch `orchestrator/vendor/sync-<timestamp>`) holding every changed
+payload, every removal, and the manifest, so cpp never sees a capability without its manifest row or
+a manifest row without its files. A run with nothing to change opens nothing. `--execute` refuses
+while any orchestrator PR is still open in cpp (they all rewrite the manifest): let it merge, or close
+it, then re-run.
+
 `enabled_kinds` (in `config/relationship.yml`) gates which kinds are cpp-vendorable.
-Preflight = WF1 `lockkit check` + `reconcile` · kind ∈ `enabled_kinds` · translated kind ∈ cpp's live enum and kind==shelf(category) · zero-link
-clean · local cpp-integrity GREEN · flavor-2 `approved_digest` matches the current shared-content digest.
-A non-empty block set aborts before any push, so a mixed approved/blocked enrolled set never partially opens
-payload PRs. `cpp-sync --execute` opens async auto-merge PRs; `last_synced_cpp_sha` is refreshed only from
-observed cpp main by `repair`, not by PR creation.
+Preflight = WF1 `lockkit check` (incl. each capability repo's verifier, e.g. `verify-skills`) + `reconcile` · kind ∈ `enabled_kinds` · translated kind ∈ cpp's live enum and kind==shelf(category) · zero-link
+clean per payload · local cpp-integrity GREEN on the combined tree · flavor-2 `approved_digest` matches the current shared-content digest.
+Fail closed: a non-empty block set, or any capability that fails to build or trips zero-link, aborts
+the whole run before anything is committed or pushed, and a RED integrity gate refuses the push — a
+mixed set never partially ships. `cpp-sync --execute` opens one async auto-merge PR; `last_synced_cpp_sha`
+is refreshed only from observed cpp main by `repair`, not by PR creation.
 
 The manifest keeps active delivery and prune ownership separate: `items` is exactly the current
 preflight-clean active set, while `owned_ids` is the sorted union of active ids, fixed orchestrator
@@ -71,8 +81,7 @@ For `google-kit`, the mcp payload is still source-free but now includes a small 
 `SUITE.md`, a blank document-style starter template, a local bootstrap script, and guard-pattern docs.
 It deliberately excludes personal profile JSON; real `doc-styles/` remain local config.
 
-**Self-management:** `install` (Cursor `sessionStart` hook + launchd agent), `self-heal`, `vendor` /
-`delete` (the per-id edge primitives `cpp-sync` calls), `zero-link`.
+**Self-management:** `install` (Cursor `sessionStart` hook + launchd agent), `self-heal`, `zero-link`.
 
 ## What do I run when?
 
@@ -80,7 +89,7 @@ It deliberately excludes personal profile JSON; real `doc-styles/` remain local 
 | --- | --- | --- |
 | Repair the local skill symlinks on LD's machine | `make eco-sync` (in `~/dev`) | ld home tool dirs only |
 | Add/remove a global capability to/from the cpp sync set | `orchestrator enroll\|exclude\|demote <id>` | `registry.yml` only (no delivery) |
-| Push enrolled capabilities into cpp | `orchestrator cpp-sync --execute` | ld → cpp governed PRs |
+| Push enrolled capabilities into cpp | `orchestrator cpp-sync --execute` | ld → cpp, one governed PR per run |
 | A PM sets up / refreshes their cpp clone | `/cpp-bootstrap` or `/cpp-sync` (in cpp) | the PM's laptop (cpp-owned reconciler) |
 | Repair chaos-labs google-kit discovery | `orchestrator chaos-shim-sync --execute` | configured chaos-labs shim files only |
 
@@ -89,9 +98,9 @@ It deliberately excludes personal profile JSON; real `doc-styles/` remain local 
 ```
 bin/orchestrator.sh        CLI (verbs above)
 lib/registry.sh            read/write config/registry.yml (eco-registry/v1)
-lib/selfmanage.sh          install + cpp-sync (preflight, vendor, delete-propagate, manifest)
-lib/vendor.sh              the single sanctioned ld->cpp edge writer (per-id payload PR)
-lib/manifest.sh            the one atomic data-plane manifest PR (eco-manifest/v1)
+lib/selfmanage.sh          install + cpp-sync / per-id vendor preflight, then one vendor.sh call
+lib/vendor.sh              the single sanctioned ld->cpp edge writer (ONE PR: payloads + removals + manifest)
+lib/manifest.sh            data-plane manifest generator (eco-manifest/v1), staged into vendor.sh's PR
 lib/status.sh              status matrix and JSON output
 lib/recovery.sh            rollback and quarantine recovery verbs
 lib/chaos_shim.sh          google-kit pointer/env shim delivery for chaos-labs
@@ -140,8 +149,8 @@ and eligible KleinPerkins fleet repos.
 
 ### Regime B — Cpp data-plane / WF2 / Decision B
 
-Applies to `Affirm/card-platform-product` vendoring PRs opened by `lib/vendor.sh` and manifest PRs
-from `lib/manifest.sh`.
+Applies to `Affirm/card-platform-product` PRs opened by `lib/vendor.sh` (payloads, removals, and the
+`lib/manifest.sh` manifest update, always together in one PR).
 
 - **`--auto --squash` at PR create IS correct.** Decision B: routine landing relies on cpp's
   server-side required checks plus `@affirm-cpp-bot` CODEOWNER auto-approval

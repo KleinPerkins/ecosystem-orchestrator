@@ -7,7 +7,8 @@ payloads into cpp's data plane via governed PRs (WF2). Do not hand-vendor into c
 control plane (`_ops/`, `.github/`), or duplicate relationship facts elsewhere — invoke
 `bin/orchestrator.sh` verbs and treat `config/relationship.yml` as the ld↔cpp relationship
 source of truth. PRs **in this repo** follow Regime A (plain open, no auto-merge at create); cpp
-vendoring PRs opened by `lib/vendor.sh` / `lib/manifest.sh` follow Regime B (README § PR authoring).
+PRs opened by `lib/vendor.sh` follow Regime B (README § PR authoring). Each orchestrator run ships as
+ONE cpp PR carrying its payloads, removals, and manifest update together (ADR 0002).
 
 ## Structural routing (reconstructed skeleton — not semantic prose)
 

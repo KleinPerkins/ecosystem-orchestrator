@@ -25,6 +25,38 @@ orch_cfg_get() {
       } }' "$ORCH_CONFIG"
 }
 
+# orch_manifest_rel — cpp repo-relative path of the data-plane manifest. It lives inside the FIRST
+# fixed tooling id's dir (cpp_sync_denylist), the orchestrator-owned sync shelf.
+orch_manifest_rel() {
+  local quiver fixed
+  quiver="$(orch_cfg_get cpp_quiver_path)"; quiver="${quiver:-quiver}"
+  fixed="$(orch_cfg_get cpp_sync_denylist)"; fixed="${fixed:-eco-capability-sync}"
+  printf '%s/tooling/%s/eco-capability-manifest.yml\n' "$quiver" "${fixed%% *}"
+}
+
+# orch_open_orchestrator_prs <cpp_repo> <branch_prefix> — print "#<n> <head> <url>" for every open cpp PR
+# whose head is under the orchestrator prefix; rc != 0 when the list cannot be read. Orchestrator PRs
+# land one at a time (ADR 0002), so cpp never has to choose a landing order between two of them.
+orch_open_orchestrator_prs() {
+  gh pr list --repo "$1" --state open --limit 200 --json number,headRefName,url \
+    --jq ".[] | select(.headRefName | startswith(\"$2/\")) | \"#\(.number) \(.headRefName) \(.url)\""
+}
+
+# orch_refuse_if_orchestrator_pr_open <cpp_repo> <branch_prefix> — rc 1 (fail closed) when cpp already
+# has an open orchestrator PR or the open-PR list cannot be read.
+orch_refuse_if_orchestrator_pr_open() {
+  local open
+  if ! open="$(orch_open_orchestrator_prs "$1" "$2")"; then
+    orch_err "could not list open cpp PRs — refusing to open a possibly concurrent orchestrator PR"
+    return 1
+  fi
+  [ -z "$open" ] && return 0
+  orch_err "cpp already has an open orchestrator PR — refusing to open another (orchestrator PRs land one at a time):"
+  printf '%s\n' "$open" | sed 's/^/    /' >&2
+  orch_err "wait for it to merge (or close it), then re-run. Nothing was pushed."
+  return 1
+}
+
 # orch_canonical_noreply — the canonical KleinPerkins GitHub noreply (LD authors cpp PRs as this).
 # Self-contained (the orchestrator is private + the relationship owner, so ld tokens are allowed here).
 orch_canonical_noreply() { printf '%s\n' "49759187+KleinPerkins@users.noreply.github.com"; }

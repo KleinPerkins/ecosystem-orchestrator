@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # Hermetic orchestrator lifecycle regression for manifest ownership and downstream prune.
 #
-# Always exercises real enroll/vendor/exclude/demote/delete/manifest/rollback/quarantine code against
-# throwaway git fixtures. Set ORCH_TEST_CPP_DIR to a clean cpp checkout to additionally run cpp's real
-# merged eco-capability reconciler against every active/removal transition.
+# Always exercises real enroll/vendor/exclude/demote/delete/sync/rollback/quarantine code against
+# throwaway git fixtures. Every vendor/delete step asserts its payload change and its manifest change
+# are ONE commit (ADR 0002). Set ORCH_TEST_CPP_DIR to a clean cpp checkout to additionally run cpp's
+# real merged eco-capability reconciler against every active/removal transition.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -87,8 +88,18 @@ run_vendor() {
   ORCH_CONFIG="$CONFIG" ORCH_REGISTRY="$REGISTRY" bash "$ROOT/lib/vendor.sh" --cpp-dir "$CPP" "$@"
 }
 
-run_manifest() {
-  ORCH_CONFIG="$CONFIG" ORCH_REGISTRY="$REGISTRY" bash "$ROOT/lib/manifest.sh" --cpp-dir "$CPP" "$@"
+run_sync() {
+  ORCH_CONFIG="$CONFIG" ORCH_REGISTRY="$REGISTRY" bash "$ROOT/lib/vendor.sh" --sync --cpp-dir "$CPP" "$@"
+}
+
+# assert_atomic <label> — the pending change is ONE commit carrying both the payload change and the
+# manifest change for $ID (never a payload-only or manifest-only step).
+assert_atomic() {
+  local files
+  [ "$(git -C "$CPP" rev-list --count main..HEAD)" = 1 ] || fail "$1" "expected exactly one commit"
+  files="$(git -C "$CPP" diff --name-only main HEAD)"
+  printf '%s\n' "$files" | grep -q "^quiver/skills/$ID/" || fail "$1" "payload change missing from the commit"
+  printf '%s\n' "$files" | grep -qxF "${MANIFEST#"$CPP"/}" || fail "$1" "manifest change missing from the same commit"
 }
 
 land_current() {
@@ -185,20 +196,19 @@ items:
 EOF
 git -C "$CPP" add "${MANIFEST#"$CPP"/}"
 git -C "$CPP" commit -qm "fixture legacy manifest"
-run_manifest >/dev/null
+run_sync >/dev/null
 land_current
 manifest_has_item legacy-removed && fail "legacy migration active cleanup" "removed id remained active"
 manifest_owns legacy-removed || fail "legacy migration tombstone" "prior active id was not retained"
 manifest_owns cpp-native && fail "legacy migration native ownership" "cpp-native id was claimed"
 pass "legacy active-only manifest migrates removed ids into bounded ownership"
 
-# Enroll -> vendor -> active manifest -> downstream link.
+# Enroll -> vendor (payload + manifest row in one commit) -> downstream link.
 run_orch enroll "$ID" -- "fixture enroll" >/dev/null
 [ "$(ORCH_CONFIG="$CONFIG" ORCH_REGISTRY="$REGISTRY" bash -c '. "$1/lib/registry.sh"; reg_state "$2"' _ "$ROOT" "$ID")" = enrolled ] \
   || fail "enroll" "registry state is not enrolled"
 run_vendor "$ID" >/dev/null
-land_current
-run_manifest "$ID" >/dev/null
+assert_atomic "vendor atomicity"
 land_current
 manifest_has_item "$ID" || fail "active manifest" "$ID missing from items"
 manifest_owns "$ID" || fail "active ownership" "$ID missing from owned_ids"
@@ -214,11 +224,11 @@ if [ -n "$RECONCILER" ]; then
   pass "clean cpp reconciler installs active link and preserves protected links"
 fi
 
-# Exclude -> delete -> inactive historical tombstone -> immediate and arbitrarily late prune.
+# Exclude -> delete (payload removal + manifest row in one commit) -> inactive historical tombstone ->
+# immediate and arbitrarily late prune.
 run_orch exclude "$ID" -- "fixture exclude" >/dev/null
 run_vendor --delete "$ID" >/dev/null
-land_current
-run_manifest >/dev/null
+assert_atomic "delete atomicity"
 land_current
 manifest_has_item "$ID" && fail "exclude active cleanup" "$ID remained active"
 manifest_owns "$ID" || fail "exclude tombstone" "$ID was not retained in owned_ids"
@@ -231,11 +241,11 @@ if [ -n "$RECONCILER" ]; then
   pass "clean cpp reconciler prunes only the owned stale link"
 fi
 
-run_manifest >/dev/null
+run_sync >/dev/null
 land_current
 manifest_owns "$ID" || fail "tombstone retention" "$ID ownership expired without downstream acknowledgements"
 before="$(git -C "$CPP" hash-object "$MANIFEST")"
-run_manifest >/dev/null
+run_sync >/dev/null
 land_current
 after="$(git -C "$CPP" hash-object "$MANIFEST")"
 [ "$before" = "$after" ] || fail "repeated manifest determinism" "$before != $after"
@@ -253,8 +263,7 @@ fi
 write_master
 run_orch enroll "$ID" -- "fixture re-enroll" >/dev/null
 run_vendor "$ID" >/dev/null
-land_current
-run_manifest "$ID" >/dev/null
+assert_atomic "re-enroll vendor atomicity"
 land_current
 ROLLBACK_SHA="$(git -C "$CPP" rev-parse HEAD)"
 set_journal_sha "$ROLLBACK_SHA"
@@ -263,8 +272,7 @@ reconcile
 run_orch demote "$ID" -- "fixture demote" >/dev/null
 rm -rf "$SRC/skills/$ID"
 run_vendor --delete "$ID" >/dev/null
-land_current
-run_manifest >/dev/null
+assert_atomic "demote delete atomicity"
 land_current
 manifest_has_item "$ID" && fail "demote active cleanup" "$ID remained active"
 manifest_owns "$ID" || fail "demote tombstone" "$ID was not retained after master deletion"
@@ -275,24 +283,21 @@ if [ -n "$RECONCILER" ]; then
 fi
 pass "demote/delete-after-master-gone retains deterministic prune ownership"
 
-# Repeat the inactive manifest, then rollback the old marked payload. Historical ownership remains
-# stable without making the demoted item active; deleting it again is deterministic.
-run_manifest >/dev/null
+# Repeat the inactive sync, then rollback the old marked payload. Historical ownership remains stable
+# without making the demoted item active; the next sync removes the stray payload deterministically.
+run_sync >/dev/null
 land_current
 manifest_owns "$ID" || fail "pre-rollback ownership" "$ID tombstone was lost"
 ORCH_CONFIG="$CONFIG" ORCH_REGISTRY="$REGISTRY" \
   bash "$ROOT/lib/recovery.sh" rollback --cpp-dir "$CPP" "$ID" >/dev/null
 land_current
 [ -f "$CPP/quiver/skills/$ID/VENDORED.md" ] || fail "rollback restore" "marked payload was not restored"
-run_manifest >/dev/null
+run_sync >/dev/null
 land_current
 manifest_has_item "$ID" && fail "rollback activation" "demoted rollback became active"
 manifest_owns "$ID" || fail "rollback ownership" "restored marked payload was not owned"
-run_vendor --delete "$ID" >/dev/null
-land_current
-run_manifest >/dev/null
-land_current
-pass "rollback preserves ownership without reactivating a demoted item"
+[ ! -e "$CPP/quiver/skills/$ID" ] || fail "rollback stray removal" "sync left the demoted stray payload"
+pass "rollback preserves ownership without reactivating a demoted item; sync removes the stray"
 
 # Quarantine drives the same local fixture path: registry exclusion, payload deletion, manifest
 # tombstone, and downstream prune. --dry-run prevents network writes while --cpp-dir exercises the
@@ -301,11 +306,10 @@ write_master
 run_orch enroll "$ID" -- "fixture quarantine setup" >/dev/null
 run_vendor "$ID" >/dev/null
 land_current
-run_manifest "$ID" >/dev/null
-land_current
 reconcile
 ORCH_CONFIG="$CONFIG" ORCH_REGISTRY="$REGISTRY" ORCH_SKIP_GH_PR_CLOSE=1 \
   bash "$ROOT/lib/recovery.sh" quarantine --dry-run --cpp-dir "$CPP" "$ID" -- "fixture incident" >/dev/null
+assert_atomic "quarantine atomicity"
 land_current
 [ "$(ORCH_CONFIG="$CONFIG" ORCH_REGISTRY="$REGISTRY" bash -c '. "$1/lib/registry.sh"; reg_state "$2"' _ "$ROOT" "$ID")" = excluded ] \
   || fail "quarantine registry" "state is not excluded"

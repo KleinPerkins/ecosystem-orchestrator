@@ -12,6 +12,7 @@ after acceptance, not even a status-bullet edit. Supersession is recorded only v
 | ADR | Title | Status | Date |
 |---|---|---|---|
 | 0001-single-sanctioned-cpp-edge-writer.md | single sanctioned cpp edge writer | DRAFT | 2026-08-06 |
+| 0002-one-combined-cpp-pr-per-sync.md | one combined cpp PR per sync run | DRAFT | 2026-10-20 |
 | <!-- TODO: doc-warden will populate rows here via repair --> | | | |
 
 ## Conventions
