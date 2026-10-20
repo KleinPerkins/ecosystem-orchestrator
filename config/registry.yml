@@ -22,7 +22,7 @@ schema: eco-registry/v1
 # below is machine-edited by enroll/exclude/demote/approve/repair/quarantine, so keep it free of
 # interleaved comments (one record per id).
 #
-# Excluded set context: five ids are intentionally excluded from cpp-sync. awa is a standalone
+# Excluded set context: six ids are intentionally excluded from cpp-sync. awa is a standalone
 # system package whose cpp delivery is deferred (discoverability-only descriptor pointer, no vendored
 # runtime bytes). keep-awake is Darwin/Amphetamine + GUI-app + user-hook bound and its plugin kind is
 # not in cpp enabled_kinds, so it has no downstream cpp target. verification-before-completion is a
@@ -30,10 +30,11 @@ schema: eco-registry/v1
 # Cursor exposure only, so it is intentionally not vendored downstream. snow-kit is a personal global
 # Snowflake MCP (v0.2.0) that has not been promoted for cpp distribution; enroll it on promotion.
 # dev-main-sync is a Darwin/AppKit GUI utility bound to the local host, so no runtime or payload
-# belongs downstream.
+# belongs downstream. algorithmic-art is an Anthropic flavor-2 snapshot the operator keeps in the
+# skills repo but chose (2026-10-20) not to distribute to cpp or install locally.
 # Everything else in items: is enrolled and vendored on cpp-sync -- including agent-route (now
-# vendored for cpp PM discovery) and the Anthropic flavor-2 snapshots (anthropics/skills@35414756),
-# all enrolled+vendored under governed orchestrator PRs. The drift check treats only those five
+# vendored for cpp PM discovery) and the other Anthropic flavor-2 snapshots (anthropics/skills@35414756),
+# all enrolled+vendored under governed orchestrator PRs. The drift check treats only those six
 # excluded ids as expected omissions.
 items:
   - id: prompt-architect
@@ -56,8 +57,8 @@ items:
     last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
     last_synced_at: "2026-08-25T10:54:04Z"
   - id: algorithmic-art
-    state: enrolled
-    reason: "enroll anthropic flavor-2 skill fleet for cpp sync"
+    state: excluded
+    reason: "kept in repo, not distributed to cpp"
     approved_digest: "51ee347b18037a6bb6867a9f4741925905011b3ff9bac4c4514bf5fd17e2477e"
     content_digest: "51ee347b18037a6bb6867a9f4741925905011b3ff9bac4c4514bf5fd17e2477e"
     last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
