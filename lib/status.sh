@@ -84,7 +84,8 @@ open_pr_state() {
   repo="$(orch_cfg_get cpp_repo)"
   prefix="$(orch_cfg_get cpp_pr_branch_prefix)"; prefix="${prefix:-orchestrator/vendor}"
   refs="$(gh pr list --repo "$repo" --state open --json headRefName --jq '.[].headRefName' 2>/dev/null || true)"
-  if printf '%s\n' "$refs" | awk -v p="$prefix" -v id="$id" '$0 == p "/" id || $0 ~ ("^" p "/" id "-") || $0 ~ ("^" p "/rm-" id "-") || $0 ~ ("^" p "/manifest-") {found=1} END{exit found?0:1}'; then
+  # Per-id branches name their id; a combined cpp-sync branch (sync-*) may carry any id.
+  if printf '%s\n' "$refs" | awk -v p="$prefix" -v id="$id" '$0 == p "/" id || $0 ~ ("^" p "/" id "-") || $0 ~ ("^" p "/rm-" id "-") || $0 ~ ("^" p "/sync-") {found=1} END{exit found?0:1}'; then
     printf 'open\n'
   else
     printf 'none\n'
@@ -114,10 +115,10 @@ next_action() {
   local reg="$1" approval="$2" pstate="$3" invalid="$4" open="$5"
   case "$approval" in missing|malformed|drifted) printf 'approve' ; return 0 ;; esac
   [ -n "$invalid" ] && { printf 'repair'; return 0; }
+  # cpp-sync --execute repairs every payload/manifest mismatch in one PR, but refuses while an
+  # orchestrator PR is still open, so an open PR always comes first.
   case "$pstate" in
-    missing|stray) printf 'cpp-sync --execute' ;;
-    payload-only) printf 'repair manifest' ;;
-    manifest-only) printf 'wait for payload PR or repair' ;;
+    missing|stray|payload-only|manifest-only) [ "$open" = "open" ] && printf 'wait for PR' || printf 'cpp-sync --execute' ;;
     *) [ "$open" = "open" ] && printf 'wait for PR' || printf 'none' ;;
   esac
 }

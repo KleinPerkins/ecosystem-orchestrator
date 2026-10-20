@@ -25,6 +25,15 @@ orch_cfg_get() {
       } }' "$ORCH_CONFIG"
 }
 
+# orch_manifest_rel — cpp repo-relative path of the data-plane manifest. It lives inside the FIRST
+# fixed tooling id's dir (cpp_sync_denylist), the orchestrator-owned sync shelf.
+orch_manifest_rel() {
+  local quiver fixed
+  quiver="$(orch_cfg_get cpp_quiver_path)"; quiver="${quiver:-quiver}"
+  fixed="$(orch_cfg_get cpp_sync_denylist)"; fixed="${fixed:-eco-capability-sync}"
+  printf '%s/tooling/%s/eco-capability-manifest.yml\n' "$quiver" "${fixed%% *}"
+}
+
 # orch_canonical_noreply — the canonical KleinPerkins GitHub noreply (LD authors cpp PRs as this).
 # Self-contained (the orchestrator is private + the relationship owner, so ld tokens are allowed here).
 orch_canonical_noreply() { printf '%s\n' "49759187+KleinPerkins@users.noreply.github.com"; }

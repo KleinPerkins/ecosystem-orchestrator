@@ -413,7 +413,7 @@ payload_content_digest() {
 # engine never parses it). `items` is the active delivery set; `owned_ids` is the independently
 # derived active-plus-historical-tombstone prune namespace. The body is the only diff-determining
 # content; the `generated_at` stamp is PRESERVED from <existing_text> whenever the body is unchanged,
-# so a no-op cpp-sync re-emits a BYTE-IDENTICAL file (git no-op -> no spurious manifest PR). Items
+# so a no-op cpp-sync re-emits a BYTE-IDENTICAL file (git no-op -> no spurious manifest change). Items
 # arrive pre-sorted by the caller as `id:category:scope:space-joined-expose` tuples.
 payload_emit_manifest() {
   local dst="$1" owned="$2" existing="$3"; shift 3
@@ -445,9 +445,9 @@ schema: eco-manifest/v1
 # authorized by owned_ids and independently refuses cpp-native or foreign-quiver links (B6
 # defense-in-depth). Removed ownership remains as a bounded historical tombstone so laptop reconcilers
 # that sync arbitrarily late can still prune dangling links; no cpp-native id is inferred into the set.
-# Regenerated as one atomic PR per cpp-sync run, landing AFTER the per-id payload PRs (eventual
-# consistency is safe: the reconciler warns-on-missing-payload and never hard-fails a not-yet-landed
-# active item).
+# Regenerated inside the SAME governed PR as the payload adds/removes it reflects (one PR per sync),
+# so main never lists an active item whose payload is absent. Landing order is never relied on: one
+# missing skill payload makes the reconciler skip every skill install.
 generated_at: "$1"
 owned_ids: $ownseq
 items:
@@ -455,7 +455,7 @@ EOF
     printf '%s' "$items"
   }
   # Preserve the prior generated_at iff EVERYTHING but that line is byte-identical (so a no-op sync
-  # re-emits a byte-stable file -> git no-op -> no spurious manifest PR).
+  # re-emits a byte-stable file -> git no-op -> no spurious manifest change).
   local now; now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   if [ -n "$existing" ]; then
     local new_stripped old_stripped old_gen

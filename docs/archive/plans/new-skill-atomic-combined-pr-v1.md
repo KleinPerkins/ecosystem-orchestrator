@@ -1,13 +1,13 @@
 # New-skill atomic vendor — one combined payload + manifest PR
 
 **Version:** v1
-**Status:** DRAFT
+**Status:** SUPERSEDED — by [ADR 0002](../../adr/0002-one-combined-cpp-pr-per-sync.md) (2026-10-20)
 **Date:** 2026-08-24
 **Owning repository:** `KleinPerkins/ecosystem-orchestrator` (`~/dev/personal/ecosystem-orchestrator`)
 **Owner:** Orchestrator/CPP owners; LD operator
 **Plan-type:** standard
 **Program milestone:** Post–Context Efficiency Release 2 follow-up, filed at C-03 closure.
-**Authority:** [`KleinPerkins/dev` Context Efficiency Release 2 closure plan](https://github.com/KleinPerkins/dev/blob/main/_ops/plans/context-efficiency-release2-closure-v1.md); [ADR 0001 — single sanctioned cpp-edge writer](../adr/0001-single-sanctioned-cpp-edge-writer.md)
+**Authority:** [`KleinPerkins/dev` Context Efficiency Release 2 closure plan](https://github.com/KleinPerkins/dev/blob/main/_ops/plans/context-efficiency-release2-closure-v1.md); [ADR 0001 — single sanctioned cpp-edge writer](../../adr/0001-single-sanctioned-cpp-edge-writer.md)
 **Baseline:** orchestrator `origin/main` `14726ed31e2fa9bd3a508adcdcf7b8a67ec78674`; CPP `origin/main` `9f32215c0325b84fcf0325d0efe859fe858438e3`
 **Motivating incident:** the first brand-new-skill vendor (`save-game`) split into payload PR #737 + manifest PR #738 in CPP; neither could merge independently without breaking CPP `main`, and it took a manual combined PR (#740) to land safely.
 
@@ -15,6 +15,7 @@ This DRAFT is planning-only. It authorizes no orchestrator code, `cpp-sync`, `ve
 
 **Changelog**
 - v1 (2026-08-24) — Establish the follow-up to make brand-new-skill vendoring emit ONE atomic payload + manifest CPP PR.
+- Superseded (2026-10-20) — never accepted; ADR 0002 makes every orchestrator cpp delivery one combined PR (brand-new, refreshed, and removed capabilities alike), which covers A0–A5 here.
 
 ## 1. Problem
 

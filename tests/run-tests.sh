@@ -25,6 +25,7 @@ run_test tests/test_tool_snapshot_payload.sh
 run_test tests/test_chaos_shim.sh
 run_test tests/test_lockkit.sh
 run_test tests/test_delete_propagation.sh
+run_test tests/test_combined_pr.sh
 run_test tests/test_zero_link.sh
 run_test tests/test_payload_tests_exclusion.sh
 run_test tests/test_payload_evidence_exclusion.sh
