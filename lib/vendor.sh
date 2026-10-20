@@ -271,12 +271,13 @@ if [ -n "$FAILED" ]; then
 fi
 
 # The manifest is regenerated INSIDE this same change (never its own PR): cpp-sync rewrites the
-# active set; per-id runs touch only the named id's row. manifest.sh writes AND stages it.
+# active set; per-id runs touch only the named id's row.
 m_args=(--cpp-dir "$WORK")
 if [ "$SYNC" = 1 ]; then m_args+=(${V_IDS[@]+"${V_IDS[@]}"})
 elif [ "$DELETE" = 1 ]; then m_args+=(--keep-existing --drop "${args[0]}")
 else m_args+=(--keep-existing "${args[0]}"); fi
-bash "$VEN_LIB_DIR/manifest.sh" "${m_args[@]}" || { orch_err "ABORT: manifest regeneration failed; nothing committed"; exit 1; }
+bash "$VEN_LIB_DIR/manifest.sh" "${m_args[@]}" && git -C "$WORK" add -- "$MANIFEST_REL" \
+  || { orch_err "ABORT: manifest regeneration failed; nothing committed"; exit 1; }
 
 # idempotent no-op: if nothing staged, every item already matches the base branch.
 CHANGED="$(git -C "$WORK" diff --cached --name-only)"

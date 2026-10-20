@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# lib/manifest.sh — orchestrator data-plane MANIFEST generator (WF2/B5). Writes and stages
-# quiver/tooling/eco-capability-sync/eco-capability-manifest.yml (schema eco-manifest/v1) inside the
-# cpp tree that lib/vendor.sh is assembling. It never branches, commits, pushes, or opens a PR: the
-# manifest always ships inside vendor.sh's ONE PR together with the payload changes it reflects
-# (ADR 0002), so cpp main never lists an active item whose payload is absent.
+# lib/manifest.sh — orchestrator data-plane MANIFEST generator (WF2/B5). Writes
+# quiver/tooling/eco-capability-sync/eco-capability-manifest.yml (schema eco-manifest/v1) into the
+# cpp working tree that lib/vendor.sh is assembling. It never touches the git index, commits, pushes,
+# or opens a PR: vendor.sh stages the file and ships it inside its ONE PR together with the payload
+# changes it reflects (ADR 0002), so cpp main never lists an active item whose payload is absent.
 #
 #   manifest.sh --cpp-dir DIR [--keep-existing] [--drop ID]... [ID ...]
 #     ID...            ids whose rows are (re)generated from their live master meta.yml.
@@ -11,7 +11,7 @@
 #     --keep-existing  per-id: carry every other existing row unchanged; only the named ids change.
 #     --drop ID        with --keep-existing: remove ID's row (per-id delete).
 #   `owned_ids` is always derived independently (see build_owned_ids). Category/scope/expose are read
-#   LIVE from each master meta.yml. A byte-identical result stages nothing.
+#   LIVE from each master meta.yml. A no-op regeneration rewrites the file byte-identically.
 set -uo pipefail
 MAN_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 . "$MAN_LIB_DIR/common.sh"
@@ -149,4 +149,3 @@ OWNED_IDS="$(build_owned_ids "$TUPLES" "$EXISTING" | paste -sd' ' -)"
 # Intentional word-split of the newline tuple list into positional args.
 IFS=$'\n' read -r -d '' -a _tarr < <(printf '%s\0' "$TUPLES")
 payload_emit_manifest "$WORK/$REL" "$OWNED_IDS" "$EXISTING" "${_tarr[@]+"${_tarr[@]}"}"
-git -C "$WORK" add "$REL"
