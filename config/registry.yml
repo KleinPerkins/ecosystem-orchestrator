@@ -206,8 +206,8 @@ items:
   - id: operator-voice
     state: enrolled
     reason: "M5-B: independent security review (4-reviewer swarm) + independent verifier clearance obtained 2026-07-31 (shipping_clearance=approved, 0 open P0/P1); cpp-governed generic kind:tool reconciler landed+green (cpp PR #461/#462/#464); GA-ready per operator-voice-toolkit-build-plan.md M5 sequence"
-    approved_digest: "af20b97742eef0dd477bba2ef4358679cafc74a978bbcdb1639b88f0a3fa29bf"
-    content_digest: "af20b97742eef0dd477bba2ef4358679cafc74a978bbcdb1639b88f0a3fa29bf"
+    approved_digest: "566a2926c2e09581ec56eed03f25f67e06c20718f29074520fc2a9452c9fd450"
+    content_digest: "566a2926c2e09581ec56eed03f25f67e06c20718f29074520fc2a9452c9fd450"
     last_synced_cpp_sha: "37b527e86e2cbfbd7659a04dc8f3ca6d678c1365"
     last_synced_at: "2026-08-25T10:54:04Z"
   - id: xlsx
