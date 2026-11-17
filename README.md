@@ -131,6 +131,29 @@ The fail-closed `ci-required` aggregate binds both measurements to one exact rev
 attempt, workflow and PR base/head tuple. CI uses read-only checkout and disposable fixture
 state; it never invokes a real downstream sync. Local checks do not establish hosted success.
 
+### Local fixture verification
+
+Run the complete configured repository gate from the repository root:
+
+```sh
+python3 -I -B scripts/verify.py local
+```
+
+This runs both fixture groups, including the Python CI, review capture, creation-origin and
+App-gate tests. For an affected group, append `--shard registry-discovery` or
+`--shard payload-delivery`. The original `bash tests/run-tests.sh` remains the shell-suite
+entrypoint. All fixture validation uses disposable state; real consumer delivery stays in the
+explicit WF2 command path.
+
+The source and producer bootstraps were admitted in [PR104](https://github.com/KleinPerkins/ecosystem-orchestrator/pull/104)
+and [PR105](https://github.com/KleinPerkins/ecosystem-orchestrator/pull/105). At the 2026-11-17
+bootstrap baseline, main `88b6f86` passed [hosted CI](https://github.com/KleinPerkins/ecosystem-orchestrator/actions/runs/44160494867)
+with all 12 shell suites and 140 Python cases, and [trusted-main read-only App qualification](https://github.com/KleinPerkins/ecosystem-orchestrator/actions/runs/44164584608)
+verified the exact installation, repository scope, current CI and App non-bypass status, with
+token revocation. The qualified writer was then enabled for ordinary source delivery. Subsequent
+PRs use automatic originating-account review, exact hosted CI and App-owned native squash.
+Read-only `app-current` qualification requires the runtime writer flag to be OFF.
+
 The App authenticates the exact Actions producer/run, revision, base/head and bound output.
 The contract hash binds the reported inputs; it does not independently attest that candidate
 workflow/dispatcher code executed every test. Automatic independent content review examines
