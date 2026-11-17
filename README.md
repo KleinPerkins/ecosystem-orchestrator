@@ -1,6 +1,6 @@
 # ecosystem-orchestrator
 
-Private cross-workspace **ecosystem orchestrator** (reorg-v2 + the capability-lifecycle paradigm).
+Cross-workspace **ecosystem orchestrator** (reorg-v2 + the capability-lifecycle paradigm).
 This is the **single place** the relationship between the personal/home workspace (ld) and the governed
 downstream consumer (cpp = `Affirm/card-platform-product`) is defined (**INV-zero-link**): no ld artifact
 and no cpp artifact names the other side; only this repo does. It also owns narrow per-consumer shims
@@ -124,28 +124,64 @@ propagation is bounded to orchestrator-owned payloads (the `VENDORED.md` marker)
 downstream link prune additionally requires the id in manifest `owned_ids`. Born-compliant: LOCAL
 noreply identity + identity-guard / data-guard / session-lock pre-commit hooks.
 
-Pull requests are protected by runnerless v3 verification.
+Repository CI uses two permanent standard GitHub Actions groups: `registry-discovery` and
+`payload-delivery`. Every original shell fixture suite runs exactly once. The first group also
+runs source-owned CI, independent-review, PR-origin capture and App-gate regression tests.
+The fail-closed `ci-required` aggregate binds both measurements to one exact revision, run,
+attempt, workflow and PR base/head tuple. CI uses read-only checkout and disposable fixture
+state; it never invokes a real downstream sync. Local checks do not establish hosted success.
 
-G4 informational proof evidence: the runnerless recipe now exercises the shell regression wrapper
-and fails when the shared payload helper invariant is broken.
+The App authenticates the exact Actions producer/run, revision, base/head and bound output.
+The contract hash binds the reported inputs; it does not independently attest that candidate
+workflow/dispatcher code executed every test. Automatic independent content review examines
+those implementations and their test meaning before the exact tuple can be admitted.
+Review must reject no-op jobs, omitted suites, fabricated measurements, weakened failure
+propagation or tests stripped of meaningful assertions. All 12 substantive shell fixture
+suites and the complete assigned Python inventory remain required in actual hosted CI.
+
+The accepted Q07/Q11/Q16 route permits automatic review and App delivery of CI/governance
+changes. It adds no human technical reviewer or immutable CI-definition refresh gate.
+Local receipt provenance uses the accepted operational trust model; reviewer false negatives
+and privileged forgery remain possible. This does not waive meaningful CI. Candidate CI is
+an untrusted review subject, and stale/failed/skipped observed evidence continues to refuse.
 
 ## PR authoring — two delivery regimes
 
 These are separate delivery regimes. The create-time --auto prohibition applies ONLY to
 fleet-governed repos, NEVER to cpp vendoring PRs opened by this orchestrator.
 
-### Regime A — Fleet-governed repos
+### Regime A — This repository's CI and App delivery
 
-Applies to repos gated by `pr-automation / verify`: `KleinPerkins/skills`, this orchestrator,
-and eligible KleinPerkins fleet repos.
+The accepted G1 transition replaces this repository's retired runnerless controller with
+meaningful standard hosted CI and Chaos Scheduler App4217367. Historical `.github/pr-*`
+markers remain inert retained evidence, not an operational dependency or a reason to restart
+the retired controller. This transition changes no other repository's delivery authority.
 
-- **Never arm auto-merge at PR create.** Enabling `gh pr merge --auto` before the required Check
-  has registered drives the PR into an unreconcilable pending state (it never runs) and deadlocks
-  the PR.
-- **Correct sequence:** open a plain PR with **no** auto-merge → let `pr-automation / verify` run
-  and pass → merge via the reviewer App or operator action (the reviewer App may arm native squash
-  auto-merge only after the Check is green).
-- Protected paths (`.github`, `CODEOWNERS`) stay owner-approval-only and are never auto-approved.
+- The authoring agent automatically captures fresh independent review under the same Codex
+  account as PR creation, using a qualified enrolled cloud route when available, otherwise
+  the qualified local adapter. A separate creation-origin witness and the unedited review
+  receipt bind the account, repository ID1281300995 and exact base/head/policy tuple.
+  Repeat review after head, current base or trusted policy changes. Unknown origin or
+  unavailable matching review blocks that PR; the operator is not the technical reviewer.
+- Use `scripts/local_review.py`, then `scripts/create_review_pr.py`, then publish the unedited
+  review receipt prefixed with `<!-- g1-review-receipt:v1 -->`. Open verified work ready.
+  The enrolled local creator route requires ARM macOS with executable
+  `/opt/homebrew/bin/gh`. Missing/non-executable trusted CLI fails before account access,
+  journals or network writes. Linux hosted CI uses fixtures and does not qualify a Linux
+  or Intel production creator route. Other creator layouts need separate qualification.
+- Only the qualified Chaos Scheduler App approves the exact head and requests native squash
+  or eligible native squash auto-merge. Agents never merge, pre-arm or cancel auto-merge,
+  bypass checks, weaken protections or manufacture review. Current review, exact CI and
+  strict native protections must pass before every App write.
+- Initial automation admission is owner/admin-only. The initial candidate leaves trusted
+  enrollment disabled and no producers. Preserve existing control preimages; exact initial
+  PR-only admission, merged-main CI, qualified enrollment, read-only trusted-main App
+  readiness, successor control cutover and writer activation remain separate gates.
+  Keep `REVIEWER_APP_ENABLED` OFF until those gates pass.
+- Q16 local receipts are operational trust, not provider attestation or anti-forgery proof.
+  The accepted concurrent-writer race remains: another privileged actor can arm auto-merge
+  between the final null read and App approval. App-only delivery is an authorization rule,
+  not atomic exclusion of other writers; observed prearmed or unknown state still refuses.
 
 ### Regime B — Cpp data-plane / WF2 / Decision B
 
@@ -158,5 +194,4 @@ Applies to `Affirm/card-platform-product` PRs opened by `lib/vendor.sh` (payload
 - **Gate:** local cpp-integrity must be GREEN before push; auto-merge waits for cpp's own checks
   and bot approval.
 
-G4 requiredness proof evidence: this head restores `lib/payload.sh` byte-for-byte after the
-deliberate failure seed and proves `repo.ecosystem-orchestrator.m3-verify` permits merge.
+Historical G4 runnerless proof remains in Git history; it does not qualify current CI/App delivery.

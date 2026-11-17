@@ -4,8 +4,15 @@
 # KleinPerkins/dev). Edit freely once created — this file is NOT re-rendered on later runs.
 * @KleinPerkins
 
-# BEGIN kleinperkins runnerless PR automation v3
+# BEGIN kleinperkins CI and App delivery
 /.github/ @KleinPerkins
 /CODEOWNERS @KleinPerkins
 /_ops/ @KleinPerkins
-# END kleinperkins runnerless PR automation v3
+# END kleinperkins CI and App delivery
+
+# Source-owned CI/review/creation/App admission surface
+/scripts/ @KleinPerkins
+/tests/ @KleinPerkins
+/AGENTS.md @KleinPerkins
+/README.md @KleinPerkins
+/SECURITY.md @KleinPerkins

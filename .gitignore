@@ -4,6 +4,8 @@ work/
 tmp/
 .cpp-clone/
 *.tar.gz
+__pycache__/
+*.py[cod]
 
 # BEGIN KleinPerkins/dev baseline (managed by KleinPerkins/dev; do not hand-edit — see _ops/baseline/README.md in KleinPerkins/dev)
 # secrets / credentials — never commit these

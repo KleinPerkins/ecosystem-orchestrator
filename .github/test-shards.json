@@ -1,0 +1,60 @@
+{
+  "schema": "orchestrator-test-sharding/v1",
+  "state": "configured",
+  "aggregate": "ci-required",
+  "discovery": {
+    "include": [
+      "tests/test_*.sh",
+      "tests/test_*.py"
+    ],
+    "exclude": []
+  },
+  "shards": [
+    {
+      "id": "registry-discovery",
+      "tests": [
+        "tests/test_ci.py",
+        "tests/test_create_review_pr.py",
+        "tests/test_local_review.py",
+        "tests/test_lockkit.sh",
+        "tests/test_plugin_discovery.sh",
+        "tests/test_registry_cli.sh",
+        "tests/test_reviewer_app.py",
+        "tests/test_zero_link.sh"
+      ],
+      "command": [
+        "python3",
+        "-I",
+        "-B",
+        "scripts/verify.py",
+        "local",
+        "--shard",
+        "registry-discovery"
+      ],
+      "timeout_seconds": 1200
+    },
+    {
+      "id": "payload-delivery",
+      "tests": [
+        "tests/test_chaos_shim.sh",
+        "tests/test_combined_pr.sh",
+        "tests/test_delete_propagation.sh",
+        "tests/test_google_kit_payload.sh",
+        "tests/test_payload_evidence_exclusion.sh",
+        "tests/test_payload_tests_exclusion.sh",
+        "tests/test_tool_descriptor_payload.sh",
+        "tests/test_tool_snapshot_payload.sh"
+      ],
+      "command": [
+        "python3",
+        "-I",
+        "-B",
+        "scripts/verify.py",
+        "local",
+        "--shard",
+        "payload-delivery"
+      ],
+      "timeout_seconds": 1200
+    }
+  ]
+}
