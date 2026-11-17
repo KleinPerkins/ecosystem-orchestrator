@@ -116,7 +116,9 @@ class CreationTests(unittest.TestCase):
     def assert_no_create(self):
         self.assertFalse(any(method == 'POST' and path == m.PREFIX + '/pulls' for method, path, _ in self.api.calls))
 
-    def test_missing_or_nonexecutable_creator_binary_refuses_before_any_write(self):
+    @patch.object(m.platform, 'system', return_value='Darwin')
+    @patch.object(m.platform, 'machine', return_value='arm64')
+    def test_missing_or_nonexecutable_creator_binary_refuses_before_any_write(self, machine, system):
         self.creator_preflight.side_effect = self.real_creator_preflight
         binary = self.root / 'qualified-gh'
         for exists in (False, True):
@@ -133,6 +135,23 @@ class CreationTests(unittest.TestCase):
         binary.chmod(0o700)
         with patch.object(m, 'GH', str(binary)):
             self.real_creator_preflight()
+
+    def test_unenrolled_os_or_architecture_refuses_even_with_executable_cli(self):
+        self.creator_preflight.side_effect = self.real_creator_preflight
+        binary = self.root / 'qualified-gh'
+        binary.write_text('# fixture executable\n')
+        binary.chmod(0o700)
+        for system, machine in (('Linux', 'aarch64'), ('Darwin', 'x86_64'),
+                                ('Windows', 'ARM64'), ('Darwin', '')):
+            with self.subTest(system=system, machine=machine), patch.object(m, 'GH', str(binary)), \
+                    patch.object(m.platform, 'system', return_value=system), \
+                    patch.object(m.platform, 'machine', return_value=machine):
+                with self.assertRaises(m.CreatorHostError):
+                    self.create()
+            self.assertEqual(self.api.calls, [])
+            self.account_mock.assert_not_called()
+            self.assertFalse(self.journal.exists())
+            self.assertFalse(self.output.exists())
 
     def test_positive_direct_witness_exact_public_bytes_and_private_journal(self):
         url, comment = self.create()

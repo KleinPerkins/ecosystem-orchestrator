@@ -4,6 +4,7 @@ import datetime as dt
 import importlib.util
 import json
 import os
+import platform
 from pathlib import Path
 import re
 import stat
@@ -33,7 +34,8 @@ class CreatorHostError(review.CaptureError):
 
 
 def creator_host_preflight():
-    if not Path(GH).is_file() or not os.access(GH, os.X_OK):
+    if (platform.system() != 'Darwin' or platform.machine() != 'arm64'
+            or not Path(GH).is_file() or not os.access(GH, os.X_OK)):
         raise CreatorHostError(CREATOR_HOST_REQUIREMENT)
 
 
