@@ -67,3 +67,9 @@ The qualified local creator host is ARM macOS with executable `/opt/homebrew/bin
 The creator preflight must refuse clearly before any writes when that trusted binary is
 absent. Hosted Linux adapter tests use fixtures; they do not enroll a production creator
 on Linux, Intel macOS or another executable layout. Do not infer such portability.
+
+The source-only bootstrap in PR104 intentionally kept enrollment disabled/empty. The final
+bootstrap admits the actual WORK-origin producer and this repository's current adapter hashes,
+with exact App4217367/installation144433991. Source enrollment is separate from runtime
+activation: REVIEWER_APP_ENABLED remains OFF until current-main CI, successor controls and
+trusted-main read-only qualification pass. Ordinary post-bootstrap delivery is App-owned.

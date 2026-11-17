@@ -4,14 +4,30 @@
   "repository_names": [
     "KleinPerkins/ecosystem-orchestrator"
   ],
-  "enabled": false,
-  "producers": [],
+  "enabled": true,
+  "producers": [
+    {
+      "id": "enrollment-24c0a5f2",
+      "enabled": true,
+      "github_user_id": 49759187,
+      "origin_account": "origin-7612de79",
+      "cli_version": "codex-cli 0.148.0",
+      "credential_store": "keyring",
+      "instructions_sha256": "7efd718dd897e06155b8e49eca37d18b15fb1e47610d9cf4b2d26e294a99e10b",
+      "capture_adapter_sha256": "eac2b5684ab4746d4a6ae01a42d0af65bf4cd8598c4409b7f6bc3b9bfc9d3e0b",
+      "creation_adapter_sha256": "6ad7955cad255bd99a195f782e966f2e2c63a633786cbde39407ed15c70b388d",
+      "allowed_startup_notice_sha256": [
+        "b2fc6975a5637afa2ac999a3260fc7980db0be97b0474c7a8a14c57e18d4a6e1",
+        "de8c81bdbcbc27db4d16d6ea11b6463544d5351492a5b397d3d31af1fbc78ca3"
+      ]
+    }
+  ],
   "governance": {
-    "phase": "G1-initial-source-writer-off",
+    "phase": "G1-source-producer-admitted",
     "repository": "KleinPerkins/ecosystem-orchestrator",
     "authorized_delivery": "Accepted amended G1 cohort authorizes permanent meaningful sharded standard GitHub Actions and Chaos Scheduler App delivery for this target. This supersedes inherited runnerless-only hosting restrictions for this CI transition. The retired PR controller will not resume.",
     "review_authority": "The authoring agent automatically captures a fresh enrolled independent review under the originating PR-creation account before every ready PR and after any head, current base or trusted policy change. Use a qualified same-account cloud route when available, otherwise the qualified trusted local adapter. No human technical review or cross-account substitution.",
-    "bootstrap_limits": "This initial source candidate leaves enrollment disabled with no producers. Public exposure clearance, exact owner/admin initial PR-only admission, successful merged-main CI, qualified producer admission, read-only trusted-main App readiness and successor control cutover are separate gates. Keep REVIEWER_APP_ENABLED OFF until all gates pass. Retained old required checks are bootstrap blockers only, never an operational dependency or a request to restart the retired controller. Agents cannot merge, bypass checks or manipulate auto-merge.",
+    "bootstrap_limits": "PR104 admitted source implementation with the producer registry intentionally disabled/empty. This final bootstrap admits the actual runtime-verified WORK-origin producer with current repository-specific adapter/instruction hashes. Source enrollment does not activate the App: REVIEWER_APP_ENABLED stays OFF until current merged-main CI, exact installation/scope/non-bypass controls and read-only trusted-main App qualification pass. This closes initial source/producer admission; subsequent ordinary changes use automatic originating-account review and qualified App-only delivery, with no human technical reviewer or blanket CI refresh gate.",
     "native_delivery_authority": "The qualified Chaos Scheduler App4217367 is the only authorized automatic approver and native delivery actor. It supplies or reconciles its own exact-head approval and requests native SQUASH immediately when merge-ready or native SQUASH auto-merge when eligible blocked, after fresh originating-account independent review, exact-tuple meaningful CI and strict protections. Other approvals never substitute for the App evidence; coexisting unsolicited approvals are not inherently prohibited. Agents cannot merge, pre-arm, cancel auto-merge or bypass checks. No failed/ambiguous mutation permits blind retry or fallback.",
     "source_limits": "CI and delivery transition only. Real relationships, registry, lockkit, downstream state, frozen plans and held work are preserved. No source or local receipt proves publication, hosted execution, admission, installation, activation or delivery.",
     "concurrent_writer_boundary": "On 2026-11-17 the operator explicitly accepted the documented GitHub concurrent-writer race and directed execution to proceed. App-only delivery is an authorization and operating rule, not atomic exclusion of all other write-capable actors. Another actor may arm auto-merge between the final null read and App approval, and that approval may release its request. Unknown or observed existing auto-merge still fails admission. Existing-review reconciliation does not eliminate the first-approval race. This acceptance is distinct from Q16 review-receipt operational trust and weakens no review/CI/identity gate or actor prohibition.",
@@ -31,6 +47,13 @@
       "limits": "Reviewer false negatives and privileged forgery remain possible under accepted operational trust. No full admission bypass with conforming independent content review intact was established by the isolated CI-validator demonstration. Q16 does not authorize empty CI. Stale, failed, missing or skipped observed evidence remains blocked. A guarantee independent of both candidate implementation and content reviewer judgment would be new assurance scope.",
       "independent_adjudication_sha256": "e43744538bd633d60729b3183bf6c92a1488899d251c27523defa53c935d8fa1"
     },
-    "qualified_creator_host": "The current enrolled local creator route is ARM macOS with executable /opt/homebrew/bin/gh. Creator preflight refuses clearly before account access, output/journal creation or network mutation if the trusted CLI is absent/non-executable. No generic executable resolver or Linux/Intel production creator enrollment is introduced. Hosted Linux CI adapter tests use fixtures."
+    "qualified_creator_host": "The current enrolled local creator route is ARM macOS with executable /opt/homebrew/bin/gh. Creator preflight refuses clearly before account access, output/journal creation or network mutation if the trusted CLI is absent/non-executable. No generic executable resolver or Linux/Intel production creator enrollment is introduced. Hosted Linux CI adapter tests use fixtures.",
+    "qualified_app_identity": {
+      "app_id": 4217367,
+      "installation_id": "144433991",
+      "slug": "chaos-scheduler-automerge",
+      "repository_id": 1281300995,
+      "scope": "Exactly this repository; actual read-only token identity verified and token revoked; workflow qualification remains distinct from activation."
+    }
   }
 }

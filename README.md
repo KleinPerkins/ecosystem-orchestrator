@@ -173,11 +173,16 @@ the retired controller. This transition changes no other repository's delivery a
   or eligible native squash auto-merge. Agents never merge, pre-arm or cancel auto-merge,
   bypass checks, weaken protections or manufacture review. Current review, exact CI and
   strict native protections must pass before every App write.
-- Initial automation admission is owner/admin-only. The initial candidate leaves trusted
-  enrollment disabled and no producers. Preserve existing control preimages; exact initial
-  PR-only admission, merged-main CI, qualified enrollment, read-only trusted-main App
-  readiness, successor control cutover and writer activation remain separate gates.
-  Keep `REVIEWER_APP_ENABLED` OFF until those gates pass.
+- Initial automation admission is owner/admin-only. PR104 intentionally admitted source
+  implementation with the producer registry disabled/empty, separating initial code admission
+  from trusted account enrollment. The final bootstrap admits the actual runtime-verified
+  WORK producer and this repository's capture/creation/instruction hashes; no foreign producer
+  or private account details are copied. It pins App4217367 installation144433991.
+- Source enrollment does not activate the App. Preserve control preimages and complete current
+  merged-main CI, successor controls and read-only trusted-main App qualification before
+  setting `REVIEWER_APP_ENABLED=true`. The flag stays OFF through the final bootstrap.
+  That completes initial source/producer admission; ordinary changes then use automatic
+  originating-account review and App-only native squash, without human technical review.
 - Q16 local receipts are operational trust, not provider attestation or anti-forgery proof.
   The accepted concurrent-writer race remains: another privileged actor can arm auto-merge
   between the final null read and App approval. App-only delivery is an authorization rule,
