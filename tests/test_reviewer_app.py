@@ -261,17 +261,17 @@ class DeliveryTests(unittest.TestCase):
     def test_disabled_means_no_mutation(self):
         read,write=self.fake_apis()
         with patch.object(write,'request') as request:
-            with self.assertRaises(gate.Rejected):gate.deliver(read,write,1,{'enabled':False},'hash',NOW,gate.APP_SLUG,'123')
+            with self.assertRaises(gate.Rejected):gate.deliver(read,write,1,{'enabled':False},'hash',NOW,gate.APP_SLUG,'144433991')
             request.assert_not_called()
     def test_base_race_before_approval_prevents_all_writes(self):
         read,write=self.fake_apis()
         with patch.object(gate,'snapshot',side_effect=[{'base':'old'},{'base':'new'}]),patch.object(write,'request') as request:
-            with self.assertRaisesRegex(gate.Rejected,'before approval'):gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+            with self.assertRaisesRegex(gate.Rejected,'before approval'):gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
             request.assert_not_called()
     def test_base_race_after_approval_never_arms(self):
         read,write=self.fake_apis();proof=self.proof()
         with patch.object(gate,'snapshot',side_effect=[proof,proof,dict(proof,changed=True)]),patch.object(write,'request',return_value={'state':'APPROVED','commit_id':'a'*40,'user':{'login':gate.APP_SLUG+'[bot]','id':gate.BOT_ID,'type':'Bot'}}) as request:
-            with self.assertRaisesRegex(gate.Rejected,'after approval'):gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+            with self.assertRaisesRegex(gate.Rejected,'after approval'):gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
             self.assertEqual(request.call_count,1)
             self.assertEqual(request.call_args.args[2]['commit_id'],'a'*40)
     def test_success_writes_exact_head_then_native_squash_only(self):
@@ -286,7 +286,7 @@ class DeliveryTests(unittest.TestCase):
             return value
         read.request=observed
         with patch.object(gate,'snapshot',return_value=proof) as snapshot,patch.object(write,'request',side_effect=replies) as request:
-            result=gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+            result=gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
             self.assertEqual(result,{'status':'armed','head_sha':'a'*40,'merged':False})
             self.assertEqual(snapshot.call_count,3)
             self.assertTrue(all(call.kwargs.get('require_successor_only') is True for call in snapshot.call_args_list))
@@ -313,7 +313,7 @@ class DeliveryTests(unittest.TestCase):
             gate.snapshot(read,1,{'enabled':True},'hash',NOW,require_successor_only=True)
         read,write=self.fake_apis()
         with patch.object(gate,'snapshot',side_effect=gate.Rejected('stop at first fresh admission')) as snapshots,patch.object(write,'request') as writes:
-            with self.assertRaises(gate.Rejected):gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+            with self.assertRaises(gate.Rejected):gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
             self.assertIs(snapshots.call_args.kwargs['require_successor_only'],True)
             writes.assert_not_called()
     def test_more_than_one_required_approval_is_not_qualified(self):
@@ -338,7 +338,7 @@ class DeliveryTests(unittest.TestCase):
     def test_actual_writer_checks_repeat_before_approval_and_native_operation(self):
         read,write,writes=self.clean_apis()
         with patch.object(gate,'snapshot',return_value=self.proof()):
-            gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+            gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
         self.assertEqual(self.app_controls.call_count,2)
         self.assertTrue(all(call.args==(write,) for call in self.app_controls.call_args_list))
         self.assertTrue(all(call.kwargs=={'require_successor_only':True,'require_app_non_bypass':True}
@@ -353,7 +353,7 @@ class DeliveryTests(unittest.TestCase):
             self.app_controls.return_value=failure
             with patch.object(gate,'snapshot',return_value=self.proof()),patch.object(write,'request') as writes:
                 with self.assertRaises(gate.Rejected):
-                    gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+                    gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
                 writes.assert_not_called()
     def test_app_status_change_after_approval_prevents_native_write(self):
         baseline={'controls_sha256':'old','contributing_rulesets':[1],'app_non_bypass':{'1':'never'}}
@@ -362,7 +362,7 @@ class DeliveryTests(unittest.TestCase):
             read,write,writes=self.clean_apis()
             self.app_controls.side_effect=[baseline,changed]
             with patch.object(gate,'snapshot',return_value=self.proof()),self.assertRaises(gate.Rejected):
-                gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+                gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
             self.assertEqual(len(writes),1,'no native mutation may follow changed/unknown App status')
 
     def test_lost_approval_response_reuses_current_app_review_without_duplicate_post(self):
@@ -381,7 +381,7 @@ class DeliveryTests(unittest.TestCase):
             return value
         read.request=observed;write.request=mutate
         with patch.object(gate,'snapshot',return_value=proof) as snapshots:
-            self.assertEqual(gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')['status'],'armed')
+            self.assertEqual(gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')['status'],'armed')
         self.assertEqual(snapshots.call_count,3,'prior approval does not replace fresh complete admission')
         self.assertEqual(len(writes),1)
 
@@ -392,17 +392,17 @@ class DeliveryTests(unittest.TestCase):
             read,write=self.fake_apis();read.pages=lambda *args:[dict(approved,state=state)]
             with patch.object(gate,'snapshot',return_value=self.proof()),patch.object(write,'request') as request:
                 with self.assertRaisesRegex(gate.Rejected,'existing App review'):
-                    gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+                    gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
                 request.assert_not_called()
         read,write=self.fake_apis();read.pages=lambda *args:[approved,approved]
         with patch.object(gate,'snapshot',return_value=self.proof()),patch.object(write,'request') as request:
             with self.assertRaisesRegex(gate.Rejected,'multiple existing App reviews'):
-                gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+                gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
             request.assert_not_called()
         read,write=self.fake_apis()
         with patch.object(read,'pages',side_effect=[[approved],[]]),patch.object(gate,'snapshot',return_value=self.proof()),patch.object(write,'request') as request:
             with self.assertRaisesRegex(gate.Rejected,'existing App approval changed'):
-                gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+                gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
             request.assert_not_called()
 
 
@@ -419,7 +419,7 @@ class DeliveryTests(unittest.TestCase):
             read.request=observed
             with patch.object(gate,'snapshot',return_value=self.proof()),patch.object(write,'request') as request:
                 with self.assertRaisesRegex(gate.Rejected,'existing or unknown native auto-merge'):
-                    gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+                    gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
                 request.assert_not_called()
     def test_auto_merge_actor_and_readback_state_must_match(self):
         cases=('response_actor','response_actor_null','readback_actor','readback_actor_null','readback_method','readback_head','missing_readback')
@@ -443,7 +443,7 @@ class DeliveryTests(unittest.TestCase):
                 return pr
             read.request=observed;write.request=mutate
             with patch.object(gate,'snapshot',return_value=self.proof()),self.assertRaisesRegex(gate.Rejected,'native auto-merge not confirmed'):
-                gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+                gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
             self.assertEqual(len(writes),2,'ambiguous result must not trigger another write')
 
     def test_head_mismatch_and_graphql_errors_never_report_armed_or_retry(self):
@@ -463,7 +463,7 @@ class DeliveryTests(unittest.TestCase):
                     return approved
                 with patch.object(gate,'snapshot',return_value=proof),patch.object(write,'request',side_effect=mutate) as request:
                     with self.assertRaisesRegex(gate.Rejected,'native auto-merge not confirmed'):
-                        gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+                        gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
                     self.assertEqual(request.call_count,2)
     def clean_apis(self):
         read,write=self.fake_apis();original=read.request;writes=[]
@@ -490,7 +490,7 @@ class DeliveryTests(unittest.TestCase):
     def test_clean_native_squash_verifies_app_actor_parent_tree_and_main(self):
         read,write,writes=self.clean_apis()
         with patch.object(gate,'snapshot',return_value=self.proof()) as snapshot:
-            result=gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+            result=gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
         self.assertEqual(snapshot.call_count,3)
         self.assertEqual(result,{'status':'merged','head_sha':'a'*40,'merged':True,'merge_sha':'d'*40,'base_sha':'b'*40})
         self.assertEqual(len(writes),2)
@@ -523,9 +523,9 @@ class DeliveryTests(unittest.TestCase):
                 with self.subTest(confirmation=confirmation,defect=defect),patch.object(gate,'snapshot',return_value=self.proof()):
                     if defect:
                         with self.assertRaisesRegex(gate.Rejected,'read-only reconciliation'):
-                            gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+                            gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
                     else:
-                        result=gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+                        result=gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
                         self.assertEqual(result['status'],'merged')
                         self.assertEqual(result['merge_sha'],'d'*40)
                     self.assertEqual(len(writes),2)
@@ -541,7 +541,7 @@ class DeliveryTests(unittest.TestCase):
             write.request=mutate
             with patch.object(gate,'snapshot',return_value=self.proof()):
                 with self.assertRaises(gate.Rejected) as error:
-                    gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+                    gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
             self.assertNotIn('private arbitrary text',str(error.exception))
             self.assertEqual(len(writes),2)
     def test_changed_unknown_or_nonready_native_state_never_merges(self):
@@ -557,7 +557,7 @@ class DeliveryTests(unittest.TestCase):
                 return value
             read.request=request
             with patch.object(gate,'snapshot',return_value=self.proof()),self.assertRaisesRegex(gate.Rejected,'native delivery state drift'):
-                gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+                gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
             self.assertEqual(len(writes),1)
     def test_merge_confirmation_cannot_claim_unverified_or_foreign_delivery(self):
         for defect in ('open','wrong_actor','wrong_head','wrong_parent','wrong_tree','wrong_main'):
@@ -578,13 +578,13 @@ class DeliveryTests(unittest.TestCase):
                 return value
             read.request=request
             with patch.object(gate,'snapshot',return_value=self.proof()),self.assertRaisesRegex(gate.Rejected,'read-only reconciliation'):
-                gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+                gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
             self.assertEqual(len(writes),2)
     def test_base_moves_after_final_snapshot_prevents_delivery_write(self):
         read,write,writes=self.clean_apis();original=read.request
         read.request=lambda path: {'object':{'sha':'f'*40}} if path.endswith('/git/ref/heads/main') else original(path)
         with patch.object(gate,'snapshot',return_value=self.proof()),self.assertRaisesRegex(gate.Rejected,'native delivery state drift'):
-            gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+            gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
         self.assertEqual(len(writes),1)
     def test_visible_owner_exception_cannot_disappear_or_duplicate(self):
         for history_only in (False,True):
@@ -604,7 +604,7 @@ class DeliveryTests(unittest.TestCase):
     def test_other_app_or_multirepo_token_cannot_write(self):
         read,write=self.fake_apis();write.pages=lambda *args:[{'id':gate.REPOSITORY_ID},{'id':99}]
         with patch.object(write,'request') as request:
-            with self.assertRaises(gate.Rejected):gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'123')
+            with self.assertRaises(gate.Rejected):gate.deliver(read,write,1,{'enabled':True},'hash',NOW,gate.APP_SLUG,'144433991')
             request.assert_not_called()
 
 class CITests(unittest.TestCase):
@@ -722,7 +722,7 @@ class AppNonBypassTests(unittest.TestCase):
         app.pages=lambda path,key=None: ([{'id':gate.REPOSITORY_ID,'full_name':gate.REPOSITORY}]
             if path=='/installation/repositories' else [{'id':row['id']} for row in sets])
         with patch.object(gate,'repository_snapshot',return_value=repo):
-            value=gate.qualify_app(read,app,'c'*40,gate.APP_SLUG,'123',stage='current')
+            value=gate.qualify_app(read,app,'c'*40,gate.APP_SLUG,'144433991',stage='current')
         self.assertEqual(value['app_non_bypass'],{'1':'never'})
         original=app.request;reads=[]
         def changed(path,method='GET',data=None):
@@ -733,7 +733,7 @@ class AppNonBypassTests(unittest.TestCase):
             return result
         app.request=changed
         with patch.object(gate,'repository_snapshot',return_value=repo),self.assertRaisesRegex(gate.Rejected,'App bypass status'):
-            gate.qualify_app(read,app,'c'*40,gate.APP_SLUG,'123',stage='current')
+            gate.qualify_app(read,app,'c'*40,gate.APP_SLUG,'144433991',stage='current')
 
 class ReadinessTests(unittest.TestCase):
     def test_successor_rejects_legacy_bootstrap_and_any_retired_blocker(self):
@@ -763,7 +763,7 @@ class ReadinessTests(unittest.TestCase):
         app.pages=lambda path,key:[{'id':gate.REPOSITORY_ID,'full_name':gate.REPOSITORY}]
         return read,app,run,jobs,checks,identity
     def qualify(self, read, app):
-        return gate.qualify_app(read,app,'c'*40,gate.APP_SLUG,'123')
+        return gate.qualify_app(read,app,'c'*40,gate.APP_SLUG,'144433991')
     def test_main_readiness_no_writes_no_receipt_or_policy_enrollment_needed(self):
         read,app,*_=self.fixture()
         with patch.object(gate,'controls_snapshot',return_value={'controls_sha256':'hash','bypass_visibility':{'1':'redacted-or-unavailable'}}) as control_checks, patch.object(app,'request') as app_request:
@@ -849,14 +849,14 @@ class ReadinessTests(unittest.TestCase):
     def test_current_readiness_is_explicit_readonly_and_requires_stable_successor_controls(self):
         read,app,*_=self.fixture()
         with patch.object(gate,'controls_snapshot',return_value={'controls_sha256':'current'}) as controls,patch.object(app,'request') as writes:
-            result=gate.qualify_app(read,app,'c'*40,gate.APP_SLUG,'123',stage='current')
+            result=gate.qualify_app(read,app,'c'*40,gate.APP_SLUG,'144433991',stage='current')
         self.assertEqual(result['qualification_stage'],'current')
         self.assertFalse(result['mutated'])
         self.assertEqual(controls.call_count,2)
         self.assertTrue(all(c.kwargs=={'require_successor_only':True,'require_app_non_bypass':True} for c in controls.call_args_list))
         writes.assert_not_called()
         with patch.object(gate,'controls_snapshot',side_effect=[{'hash':'old'},{'hash':'new'}]),self.assertRaisesRegex(gate.Rejected,'controls moved'):
-            gate.qualify_app(read,app,'c'*40,gate.APP_SLUG,'123',stage='current')
+            gate.qualify_app(read,app,'c'*40,gate.APP_SLUG,'144433991',stage='current')
     def test_current_readiness_rejects_retired_checks_and_preserves_review_ci_floor(self):
         repo,rules,sets=APIAndControlsTests().controls()
         gate.validate_controls(repo,rules,sets,require_successor_only=True)
@@ -877,7 +877,7 @@ class ReadinessTests(unittest.TestCase):
         for qualify,enabled,accepted in (('false','false',False),('true','true',False),('true','false',True)):
             api=gate.API('fake');api.request=lambda path:({'id':gate.REPOSITORY_ID,'full_name':gate.REPOSITORY} if path=='/repos/'+gate.REPOSITORY else {'object':{'sha':'c'*40}})
             env={'GITHUB_REPOSITORY_ID':str(gate.REPOSITORY_ID),'GITHUB_REPOSITORY':gate.REPOSITORY,'TRUSTED_WORKFLOW_SHA':'c'*40,'CI_READ_TOKEN':'fake',
-                 'APP_TOKEN':'fake','APP_SLUG':gate.APP_SLUG,'APP_INSTALLATION_ID':'123',
+                 'APP_TOKEN':'fake','APP_SLUG':gate.APP_SLUG,'APP_INSTALLATION_ID':'144433991',
                  'REVIEWER_APP_QUALIFY':qualify,'REVIEWER_APP_ENABLED':enabled}
             with patch.dict(gate.os.environ,env,clear=True),patch('sys.argv',['reviewer_app.py','--qualify-app','--qualification-stage','current']), \
                  patch.object(gate.subprocess,'check_output',return_value='c'*40),patch.object(gate,'API',return_value=api), \
@@ -916,15 +916,15 @@ class ReadinessTests(unittest.TestCase):
             with self.assertRaisesRegex(gate.Rejected,'controls moved'):self.qualify(read,app)
     def test_invalid_token_scope_or_bot_or_outputs_reject(self):
         read,app,*_=self.fixture()
-        with self.assertRaises(gate.Rejected):gate.validate_app_identity(read,app,'wrong','123')
-        for installation in (None,'','0','unknown'):
+        with self.assertRaises(gate.Rejected):gate.validate_app_identity(read,app,'wrong','144433991')
+        for installation in (None,'','0','unknown','123','144433992',144433991):
             with self.assertRaises(gate.Rejected):gate.validate_app_identity(read,app,gate.APP_SLUG,installation)
         for repositories in ([],[{'id':gate.REPOSITORY_ID,'full_name':'other'}],
                              [{'id':gate.REPOSITORY_ID,'full_name':gate.REPOSITORY},{'id':99}]):
             app.pages=lambda *args:repositories
-            with self.assertRaises(gate.Rejected):gate.validate_app_identity(read,app,gate.APP_SLUG,'123')
+            with self.assertRaises(gate.Rejected):gate.validate_app_identity(read,app,gate.APP_SLUG,'144433991')
         read,app,*_=self.fixture();read.request=lambda path:{'id':999,'type':'Bot','login':gate.APP_SLUG+'[bot]'}
-        with self.assertRaises(gate.Rejected):gate.validate_app_identity(read,app,gate.APP_SLUG,'123')
+        with self.assertRaises(gate.Rejected):gate.validate_app_identity(read,app,gate.APP_SLUG,'144433991')
         read,app,*_=self.fixture();app.pages=lambda *args: (_ for _ in ()).throw(gate.Rejected('invalid token'))
         with self.assertRaisesRegex(gate.Rejected,'invalid token'):self.qualify(read,app)
     def test_qualification_cli_requires_separate_flag_and_writer_off(self):
@@ -932,7 +932,7 @@ class ReadinessTests(unittest.TestCase):
             api=gate.API('fake');api.request=lambda path:({'id':gate.REPOSITORY_ID,'full_name':gate.REPOSITORY} if path=='/repos/'+gate.REPOSITORY else {'object':{'sha':'c'*40}})
             env={'GITHUB_REPOSITORY_ID':str(gate.REPOSITORY_ID),'GITHUB_REPOSITORY':gate.REPOSITORY,'TRUSTED_WORKFLOW_SHA':'c'*40,
                  'CI_READ_TOKEN':'fake','APP_TOKEN':'fake','APP_SLUG':gate.APP_SLUG,
-                 'APP_INSTALLATION_ID':'123','REVIEWER_APP_QUALIFY':qualify,'REVIEWER_APP_ENABLED':enabled}
+                 'APP_INSTALLATION_ID':'144433991','REVIEWER_APP_QUALIFY':qualify,'REVIEWER_APP_ENABLED':enabled}
             with patch.dict(gate.os.environ,env,clear=True), patch('sys.argv',['reviewer_app.py','--qualify-app']), \
                  patch.object(gate.subprocess,'check_output',return_value='c'*40), \
                  patch.object(gate,'API',return_value=api), patch.object(gate,'qualify_app',return_value={'mutated':False}) as qualification, \

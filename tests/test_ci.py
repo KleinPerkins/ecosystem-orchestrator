@@ -125,11 +125,29 @@ class InventoryAndWorkflow(unittest.TestCase):
    else:
     self.assertEqual(command['run'],'python3 -I -B scripts/verify.py aggregate')
     self.assertEqual(command['env']['CI_NEEDS'],'${{ toJSON(needs) }}')
- def test_unenrolled_writer_remains_disabled(self):
+ def test_source_admission_binds_actual_creator_adapters_and_current_profile(self):
   p=ci.parse((ROOT/'.github/review-enrollments.json').read_bytes())
-  self.assertEqual({k:p[k] for k in ('schema','repository_id','repository_names','enabled','producers')},
-   {'schema':'g1-review-enrollments/v1','repository_id':1281300995,
-    'repository_names':['KleinPerkins/ecosystem-orchestrator'],'enabled':False,'producers':[]})
-  self.assertEqual(p['governance']['phase'],'G1-initial-source-writer-off')
+  self.assertEqual((p['schema'],p['repository_id'],p['repository_names']),
+   ('g1-review-enrollments/v1',1281300995,['KleinPerkins/ecosystem-orchestrator']))
+  self.assertIs(p['enabled'],True)
+  self.assertEqual(len(p['producers']),1)
+  producer=p['producers'][0]
+  self.assertIs(producer['enabled'],True)
+  self.assertEqual((producer['id'],producer['github_user_id'],producer['origin_account']),
+   ('enrollment-24c0a5f2',49759187,'origin-7612de79'))
+  self.assertEqual((producer['cli_version'],producer['credential_store']),('codex-cli 0.148.0','keyring'))
+  for key,path in [('capture_adapter_sha256','scripts/local_review.py'),
+                   ('creation_adapter_sha256','scripts/create_review_pr.py')]:
+   self.assertEqual(producer[key],ci.digest((ROOT/path).read_bytes()))
+  spec=importlib.util.spec_from_file_location('enrolled_capture',ROOT/'scripts/local_review.py')
+  capture=importlib.util.module_from_spec(spec);spec.loader.exec_module(capture)
+  self.assertEqual(producer['instructions_sha256'],capture.digest(capture.INSTRUCTIONS))
+  self.assertEqual(set(producer['allowed_startup_notice_sha256']),
+                   {capture.digest(item) for item in capture.STARTUP_NOTICES})
+  self.assertEqual(p['governance']['phase'],'G1-source-producer-admitted')
+  spec=importlib.util.spec_from_file_location('enrolled_app',ROOT/'scripts/reviewer_app.py')
+  app=importlib.util.module_from_spec(spec);spec.loader.exec_module(app)
+  self.assertEqual(p['governance']['qualified_app_identity']['installation_id'],app.INSTALLATION_ID)
+  self.assertEqual(p['governance']['qualified_app_identity']['app_id'],app.APP_ID)
 
 if __name__=='__main__':unittest.main()
