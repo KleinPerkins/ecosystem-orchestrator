@@ -53,3 +53,12 @@ qualified enrollment, App readiness and control cutover precede activation. Agen
 merge, manipulate native auto-merge, bypass checks or restart the retired controller.
 Only Chaos Scheduler App4217367 owns ordinary approval and native squash delivery. The accepted
 local-receipt trust and concurrent-writer limitations remain; source preparation is not activation.
+
+Independent review must examine workflow, dispatcher, suite inventory, assertion meaning and
+failure propagation whenever CI/tests/governance change. Reject no-op or omitted verification,
+fabricated measurements and weakened failure handling. The App authenticates exact Actions
+run/producer/revision/output binding; the contract hash is not independent test-execution
+attestation. Required meaningful full-suite hosted execution remains mandatory. Accepted
+Q07/Q11/Q16 permits reviewed automatic CI/governance changes without a human technical
+reviewer, blanket trusted-main CI byte pin or new owner-only CI-refresh gate. Preserve this
+operational trust boundary and report its limits honestly.

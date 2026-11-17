@@ -131,6 +131,20 @@ The fail-closed `ci-required` aggregate binds both measurements to one exact rev
 attempt, workflow and PR base/head tuple. CI uses read-only checkout and disposable fixture
 state; it never invokes a real downstream sync. Local checks do not establish hosted success.
 
+The App authenticates the exact Actions producer/run, revision, base/head and bound output.
+The contract hash binds the reported inputs; it does not independently attest that candidate
+workflow/dispatcher code executed every test. Automatic independent content review examines
+those implementations and their test meaning before the exact tuple can be admitted.
+Review must reject no-op jobs, omitted suites, fabricated measurements, weakened failure
+propagation or tests stripped of meaningful assertions. All 12 substantive shell fixture
+suites and the complete assigned Python inventory remain required in actual hosted CI.
+
+The accepted Q07/Q11/Q16 route permits automatic review and App delivery of CI/governance
+changes. It adds no human technical reviewer or immutable CI-definition refresh gate.
+Local receipt provenance uses the accepted operational trust model; reviewer false negatives
+and privileged forgery remain possible. This does not waive meaningful CI. Candidate CI is
+an untrusted review subject, and stale/failed/skipped observed evidence continues to refuse.
+
 ## PR authoring — two delivery regimes
 
 These are separate delivery regimes. The create-time --auto prohibition applies ONLY to
