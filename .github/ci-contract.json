@@ -1,0 +1,30 @@
+{
+  "schema": "orchestrator-ci-contract/v1",
+  "repository_id": 1281300995,
+  "repository_names": [
+    "KleinPerkins/ecosystem-orchestrator"
+  ],
+  "workflow": ".github/workflows/ci.yml",
+  "workflow_name": "CI",
+  "required_check": "ci-required",
+  "actions_app_id": 15368,
+  "reviewer_app_id": 4217367,
+  "shards": [
+    "registry-discovery",
+    "payload-delivery"
+  ],
+  "baseline_tests": [
+    "tests/test_registry_cli.sh",
+    "tests/test_plugin_discovery.sh",
+    "tests/test_google_kit_payload.sh",
+    "tests/test_tool_descriptor_payload.sh",
+    "tests/test_tool_snapshot_payload.sh",
+    "tests/test_chaos_shim.sh",
+    "tests/test_lockkit.sh",
+    "tests/test_delete_propagation.sh",
+    "tests/test_combined_pr.sh",
+    "tests/test_zero_link.sh",
+    "tests/test_payload_tests_exclusion.sh",
+    "tests/test_payload_evidence_exclusion.sh"
+  ]
+}
