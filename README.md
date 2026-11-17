@@ -165,6 +165,10 @@ the retired controller. This transition changes no other repository's delivery a
   unavailable matching review blocks that PR; the operator is not the technical reviewer.
 - Use `scripts/local_review.py`, then `scripts/create_review_pr.py`, then publish the unedited
   review receipt prefixed with `<!-- g1-review-receipt:v1 -->`. Open verified work ready.
+  The enrolled local creator route requires ARM macOS with executable
+  `/opt/homebrew/bin/gh`. Missing/non-executable trusted CLI fails before account access,
+  journals or network writes. Linux hosted CI uses fixtures and does not qualify a Linux
+  or Intel production creator route. Other creator layouts need separate qualification.
 - Only the qualified Chaos Scheduler App approves the exact head and requests native squash
   or eligible native squash auto-merge. Agents never merge, pre-arm or cancel auto-merge,
   bypass checks, weaken protections or manufacture review. Current review, exact CI and

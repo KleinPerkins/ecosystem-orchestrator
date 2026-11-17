@@ -371,13 +371,36 @@ def validate_ci_log(log, pr, merge_sha, run, contract_hash):
     require(receipts[0] == {'schema': 'orchestrator-ci-aggregate/v1', 'identity': expected, 'result': 'success', 'contract_sha256': contract_hash},
             'tested CI revision/base/head/run drift')
 
+def latest_ci_run(runs):
+    # run_started_at resets on re-run; immutable run IDs do not order attempts
+    # executed across different runs. Pending attempts cannot be ignored either.
+    require(isinstance(runs, list) and runs and all(isinstance(r, dict) for r in runs),
+            'CI run list missing or malformed')
+    require(all(r.get('status') == 'completed' for r in runs), 'CI attempt still pending or running')
+    started = []
+    for run in runs:
+        require(type(run.get('id')) is int and run['id'] > 0
+                and type(run.get('run_attempt')) is int and run['run_attempt'] > 0,
+                'invalid CI run/attempt identity')
+        value = run.get('run_started_at')
+        require(isinstance(value, str) and value.endswith('Z'), 'missing CI latest-attempt start')
+        try:
+            when = timestamp(value)
+        except (TypeError, ValueError):
+            raise Rejected('invalid CI latest-attempt start') from None
+        started.append((when, run))
+    latest = max(when for when, _ in started)
+    matches = [run for when, run in started if when == latest]
+    require(len(matches) == 1, 'ambiguous latest CI attempt start')
+    return matches[0]
+
 def validate_ci(api, prefix, pr, merge_sha):
     workflow = api.request(prefix + '/actions/workflows/ci.yml')
     require(workflow['path'] == '.github/workflows/ci.yml' and workflow['state'] == 'active', 'CI workflow identity')
     runs = api.pages(prefix + '/actions/workflows/' + str(workflow['id']) + '/runs?event=pull_request&head_sha=' + pr['head']['sha'], 'workflow_runs')
     runs = [r for r in runs if any(p['number'] == pr['number'] for p in r.get('pull_requests', []))]
     require(bool(runs), 'no CI run for PR')
-    run = max(runs, key=lambda r: (r['id'], r.get('run_attempt', 1)))
+    run = latest_ci_run(runs)
     require(run.get('status') == 'completed' and run.get('conclusion') == 'success' and run.get('event') == 'pull_request'
             and run.get('head_sha') == pr['head']['sha'] and run['repository']['id'] == REPOSITORY_ID
             and run['head_repository']['id'] == REPOSITORY_ID, 'CI run not current successful origin')
@@ -520,7 +543,7 @@ def qualify_app(read_api, app_api, trusted, app_slug, installation_id, *, stage=
     require(workflow['path'] == '.github/workflows/ci.yml' and workflow['state'] == 'active', 'CI workflow identity')
     runs = read_api.pages(prefix + '/actions/workflows/' + str(workflow['id']) + '/runs?branch=main&head_sha=' + trusted, 'workflow_runs')
     require(bool(runs), 'no current-main CI')
-    run = max(runs, key=lambda r: (r['id'], r.get('run_attempt', 1)))
+    run = latest_ci_run(runs)
     require(run.get('status') == 'completed' and run.get('conclusion') == 'success' and run.get('event') in ('push', 'workflow_dispatch')
             and run.get('head_branch') == 'main' and run.get('head_sha') == trusted
             and run['repository']['id'] == REPOSITORY_ID and run['head_repository']['id'] == REPOSITORY_ID,

@@ -74,6 +74,8 @@ class CreationTests(unittest.TestCase):
         self.output = self.root / 'origin.json'
         self.journal = self.root / 'journal.json'
         self.api = FakeGithub()
+        self.real_creator_preflight = m.creator_host_preflight
+        self.creator_preflight = self.start(patch.object(m, 'creator_host_preflight'))
         self.enrollment = {'id': 'work-local', 'origin_account': 'work', 'email': 'owner@example.invalid',
                            'workspace': 'private-workspace', 'cli_version': 'codex-cli 0.148.0', 'credential_store': 'keyring',
                            'codex_home': str(Path(os.environ.get('CODEX_HOME', str(Path.home() / '.codex'))).resolve())}
@@ -113,6 +115,24 @@ class CreationTests(unittest.TestCase):
 
     def assert_no_create(self):
         self.assertFalse(any(method == 'POST' and path == m.PREFIX + '/pulls' for method, path, _ in self.api.calls))
+
+    def test_missing_or_nonexecutable_creator_binary_refuses_before_any_write(self):
+        self.creator_preflight.side_effect = self.real_creator_preflight
+        binary = self.root / 'qualified-gh'
+        for exists in (False, True):
+            if exists:
+                binary.write_text('# fixture; not executable\n')
+                binary.chmod(0o600)
+            with self.subTest(exists=exists), patch.object(m, 'GH', str(binary)):
+                with self.assertRaisesRegex(m.CreatorHostError, 'Qualified local PR creation requires ARM macOS'):
+                    self.create()
+            self.assertEqual(self.api.calls, [])
+            self.account_mock.assert_not_called()
+            self.assertFalse(self.journal.exists())
+            self.assertFalse(self.output.exists())
+        binary.chmod(0o700)
+        with patch.object(m, 'GH', str(binary)):
+            self.real_creator_preflight()
 
     def test_positive_direct_witness_exact_public_bytes_and_private_journal(self):
         url, comment = self.create()

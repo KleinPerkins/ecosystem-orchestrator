@@ -21,7 +21,8 @@
       "observed_at": "2026-11-17T18:14:50.318625+00:00",
       "rules_read_permissions": "Current official GitHub REST documentation requires Metadata repository read permission for GET rules/branches, list rulesets and get ruleset. No Administration grant is needed. https://docs.github.com/en/rest/repos/rules",
       "native_head_precondition": "Fresh read-only live GitHub GraphQL introspection of EnablePullRequestAutoMergeInput explicitly includes expectedHeadOid:GitObjectID; MergePullRequestInput also supports it. Keep the supported head precondition.",
-      "graphql_capture_sha256": "163164321bc1f9b7bb6313d3ebdc2102ead3d52d5e6f31ae7e181234c6f43938"
+      "graphql_capture_sha256": "163164321bc1f9b7bb6313d3ebdc2102ead3d52d5e6f31ae7e181234c6f43938",
+      "ci_attempt_chronology": "GitHub official OpenAPI workflow-run.run_started_at is the latest run start and resets on rerun. Select its unique latest completed attempt across run IDs; pending/running, missing/invalid timing or ambiguous latest starts refuse. This repairs a reproduced selector freshness gap; native required-check enforcement remains authoritative, and no native-merge bypass is claimed. https://raw.githubusercontent.com/github/rest-api-description/main/descriptions/api.github.com/api.github.com.json"
     },
     "ci_assurance_boundary": {
       "accepted_authority": "Q07 permits automatic independent review and App delivery of sensitive CI/governance changes; Q11 requires the same originating account; Q16 accepts operational local review-receipt provenance. No human technical reviewer or blanket immutable CI-definition refresh gate is introduced.",
@@ -29,6 +30,7 @@
       "mandatory_content_review": "Fresh independent content review must examine candidate workflow, dispatcher, inventory, test assertions and failure propagation. All12 substantive original shell fixture suites and every assigned Python case must still execute in actual hosted CI. No-op jobs, omitted suites, fabricated measurements, weakened failures or tests stripped of meaningful assertions are review failures. Candidate CI code is untrusted review subject, never a replacement for trusted review/App code.",
       "limits": "Reviewer false negatives and privileged forgery remain possible under accepted operational trust. No full admission bypass with conforming independent content review intact was established by the isolated CI-validator demonstration. Q16 does not authorize empty CI. Stale, failed, missing or skipped observed evidence remains blocked. A guarantee independent of both candidate implementation and content reviewer judgment would be new assurance scope.",
       "independent_adjudication_sha256": "e43744538bd633d60729b3183bf6c92a1488899d251c27523defa53c935d8fa1"
-    }
+    },
+    "qualified_creator_host": "The current enrolled local creator route is ARM macOS with executable /opt/homebrew/bin/gh. Creator preflight refuses clearly before account access, output/journal creation or network mutation if the trusted CLI is absent/non-executable. No generic executable resolver or Linux/Intel production creator enrollment is introduced. Hosted Linux CI adapter tests use fixtures."
   }
 }

@@ -25,6 +25,17 @@ MAX_REVIEW_COMMENT_BYTES = 60000
 GH = '/opt/homebrew/bin/gh'
 LIMIT = 2 * 1024 * 1024
 
+CREATOR_HOST_REQUIREMENT = 'Qualified local PR creation requires ARM macOS with an executable /opt/homebrew/bin/gh; this host is not enrolled for another creator layout.'
+
+
+class CreatorHostError(review.CaptureError):
+    pass
+
+
+def creator_host_preflight():
+    if not Path(GH).is_file() or not os.access(GH, os.X_OK):
+        raise CreatorHostError(CREATOR_HOST_REQUIREMENT)
+
 
 def timestamp(value):
     require(isinstance(value, str) and value.endswith('Z'), 'UTC timestamp required')
@@ -160,6 +171,7 @@ def validate_pr(pr, branch, request, marker, started):
 
 
 def create(repo, request, policy, enrollment, receipt, title, body, output, journal, cli='codex', api=None):
+    creator_host_preflight()
     output, journal = private_destination(output), private_destination(journal)
     require(output != journal, 'output and journal must differ')
     require(isinstance(title, str) and 0 < len(title.strip()) <= 256
@@ -266,6 +278,8 @@ def main():
                                  private_read(args.title).decode(), private_read(args.body).decode(), args.output, args.journal, args.cli)
         print(url)
         print(comment_id)
+    except CreatorHostError:
+        parser.exit(1, CREATOR_HOST_REQUIREMENT + '\nNo PR or journal was created.\n')
     except (review.CaptureError, OSError, ValueError, KeyError, TypeError, AttributeError, subprocess.TimeoutExpired):
         parser.exit(1, 'PR creation refused or incomplete. Inspect private journal; do not retry or recreate.\n')
 

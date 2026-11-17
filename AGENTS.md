@@ -62,3 +62,8 @@ attestation. Required meaningful full-suite hosted execution remains mandatory. 
 Q07/Q11/Q16 permits reviewed automatic CI/governance changes without a human technical
 reviewer, blanket trusted-main CI byte pin or new owner-only CI-refresh gate. Preserve this
 operational trust boundary and report its limits honestly.
+
+The qualified local creator host is ARM macOS with executable `/opt/homebrew/bin/gh`.
+The creator preflight must refuse clearly before any writes when that trusted binary is
+absent. Hosted Linux adapter tests use fixtures; they do not enroll a production creator
+on Linux, Intel macOS or another executable layout. Do not infer such portability.

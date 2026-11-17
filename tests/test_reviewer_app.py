@@ -610,7 +610,7 @@ class DeliveryTests(unittest.TestCase):
 class CITests(unittest.TestCase):
     def fixture(self):
         pr={'number':1,'head':{'sha':'a'*40},'base':{'sha':'b'*40}}
-        run={'id':10,'run_attempt':2,'status':'completed','conclusion':'success','event':'pull_request',
+        run={'id':10,'run_attempt':2,'run_started_at':'2026-11-15T12:00:00Z','status':'completed','conclusion':'success','event':'pull_request',
              'head_sha':'a'*40,'repository':{'id':gate.REPOSITORY_ID},'head_repository':{'id':gate.REPOSITORY_ID},
              'pull_requests':[{'number':1,'head':{'sha':'a'*40},'base':{'sha':'b'*40}}], 'check_suite_id':50}
         jobs=[{'id':i,'name':name,'status':'completed','conclusion':'success','run_id':10,
@@ -649,8 +649,27 @@ class CITests(unittest.TestCase):
         for mutation in mutations:
             api,pr,run,jobs,checks=self.fixture();mutation(run,jobs,checks)
             with self.assertRaises(gate.Rejected):gate.validate_ci(api,'/repos/'+gate.REPOSITORY,pr,'c'*40)
+    def test_older_run_rerun_after_newer_success_blocks_admission(self):
+        for status in ('completed', 'queued', 'in_progress'):
+            api,pr,run,jobs,_=self.fixture()
+            older=dict(run,id=9,run_attempt=3,status=status,conclusion='failure',
+                       run_started_at='2026-11-15T12:01:00Z' if status=='completed' else '2026-11-15T11:00:00Z')
+            api.pages=lambda path,key:([run,older] if key=='workflow_runs' else jobs)
+            with self.subTest(status=status),self.assertRaises(gate.Rejected):
+                gate.validate_ci(api,'/repos/'+gate.REPOSITORY,pr,'c'*40)
+
+    def test_missing_invalid_or_ambiguous_latest_start_refuses(self):
+        for value in (None, '', 'invalid', '2026-11-15T12:00:00', True):
+            api,pr,run,_,_=self.fixture();run['run_started_at']=value
+            with self.subTest(value=value),self.assertRaises(gate.Rejected):
+                gate.validate_ci(api,'/repos/'+gate.REPOSITORY,pr,'c'*40)
+        api,pr,run,jobs,_=self.fixture();same=dict(run,id=11)
+        api.pages=lambda path,key:([run,same] if key=='workflow_runs' else jobs)
+        with self.assertRaisesRegex(gate.Rejected,'ambiguous'):
+            gate.validate_ci(api,'/repos/'+gate.REPOSITORY,pr,'c'*40)
+
     def test_newer_failed_run_blocks_older_success(self):
-        api,pr,run,jobs,_=self.fixture();failed=dict(run,id=11,conclusion='failure')
+        api,pr,run,jobs,_=self.fixture();failed=dict(run,id=11,conclusion='failure',run_started_at='2026-11-15T12:01:00Z')
         api.pages=lambda path,key:([run,failed] if key=='workflow_runs' else jobs)
         with self.assertRaises(gate.Rejected):gate.validate_ci(api,'/repos/'+gate.REPOSITORY,pr,'c'*40)
 
@@ -809,10 +828,20 @@ class ReadinessTests(unittest.TestCase):
     def test_newer_failed_main_event_blocks_prior_success(self):
         for event in ('push','workflow_dispatch'):
             read,app,run,jobs,checks,identity=self.fixture()
-            failed=dict(run,id=11,event=event,conclusion='failure');pages=read.pages
+            failed=dict(run,id=11,event=event,conclusion='failure',run_started_at='2026-11-15T12:01:00Z');pages=read.pages
             read.pages=lambda path,key:([run,failed] if key=='workflow_runs' else pages(path,key))
             with self.subTest(event=event),patch.object(gate,'controls_snapshot',return_value={}),self.assertRaises(gate.Rejected):
                 self.qualify(read,app)
+    def test_older_main_run_rerun_blocks_newer_id_success(self):
+        for status in ('completed', 'queued', 'in_progress'):
+            read,app,run,jobs,checks,identity=self.fixture()
+            older=dict(run,id=9,run_attempt=3,status=status,conclusion='failure',
+                       run_started_at='2026-11-15T12:01:00Z' if status=='completed' else '2026-11-15T11:00:00Z')
+            pages=read.pages
+            read.pages=lambda path,key:([run,older] if key=='workflow_runs' else pages(path,key))
+            with self.subTest(status=status),patch.object(gate,'controls_snapshot',return_value={}),self.assertRaises(gate.Rejected):
+                self.qualify(read,app)
+
     def test_dispatch_cannot_substitute_for_pr_receipt(self):
         api,pr,run,jobs,checks=CITests().fixture();run['event']='workflow_dispatch'
         with self.assertRaises(gate.Rejected):gate.validate_ci(api,'/repos/'+gate.REPOSITORY,pr,'c'*40)
