@@ -20,6 +20,8 @@ REPOSITORY_ID = 1281300995
 OWNER_ID = 49759187
 PREFIX = '/repos/' + REPOSITORY
 ORIGIN_MARKER = '<!-- g1-pr-origin:v1 -->\n'
+REVIEW_MARKER = '<!-- g1-review-receipt:v1 -->\n'
+MAX_REVIEW_COMMENT_BYTES = 60000
 GH = '/opt/homebrew/bin/gh'
 LIMIT = 2 * 1024 * 1024
 
@@ -79,6 +81,8 @@ def validate_receipt(receipt, request, enrollment, now):
               'reviewer_origin_account', 'workspace_binding', 'instructions_sha256', 'runtime',
               'started_at', 'completed_at', 'review', 'report_sha256'}
     require(isinstance(receipt, dict) and set(receipt) == fields, 'closed review receipt required')
+    require(len((REVIEW_MARKER + review.canonical(receipt) + '\n').encode()) <= MAX_REVIEW_COMMENT_BYTES,
+            'review receipt exceeds downstream comment bound')
     require(receipt['schema'] == review.SCHEMA and receipt['trust_model'] == 'q16-operational-local', 'review trust mismatch')
     require(isinstance(receipt['capture_id'], str) and str(uuid.UUID(receipt['capture_id'])) == receipt['capture_id'], 'review capture ID invalid')
     require(receipt['tuple'] == request and receipt['reviewer_origin_account'] == request['origin_account']

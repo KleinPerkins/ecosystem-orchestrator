@@ -206,10 +206,25 @@ class APIAndControlsTests(unittest.TestCase):
         repo=dict(id=gate.REPOSITORY_ID,full_name=gate.REPOSITORY,default_branch='main',private=False,
                   allow_squash_merge=True,allow_merge_commit=False,allow_rebase_merge=False,allow_auto_merge=True)
         rules=[dict(type='required_status_checks',ruleset_id=1,parameters=dict(strict_required_status_checks_policy=True,required_status_checks=[dict(context='ci-required',integration_id=15368)])),
-               dict(type='pull_request',ruleset_id=1,parameters=dict(required_approving_review_count=1,dismiss_stale_reviews_on_push=True,required_review_thread_resolution=True,allowed_merge_methods=['squash'])),
+               dict(type='pull_request',ruleset_id=1,parameters=dict(required_approving_review_count=1,dismiss_stale_reviews_on_push=True,required_review_thread_resolution=True,allowed_merge_methods=['squash'],require_code_owner_review=False)),
                dict(type='required_linear_history',ruleset_id=1),dict(type='deletion',ruleset_id=1),dict(type='non_fast_forward',ruleset_id=1)]
         return repo,rules,[dict(id=1,enforcement='active',bypass_actors=[dict(actor_id=5,actor_type='RepositoryRole',bypass_mode='pull_request')])]
     def test_control_positive(self):gate.validate_controls(*self.controls())
+    def test_codeowner_review_missing_malformed_or_enabled_refuses(self):
+        for value in (None, True, 0, 1, '', 'false', [], {}):
+            repo,rules,sets=self.controls()
+            rules[1]['parameters']['require_code_owner_review']=value
+            with self.subTest(value=value),self.assertRaisesRegex(gate.Rejected,'CODEOWNER review'):
+                gate.validate_controls(repo,rules,sets)
+        repo,rules,sets=self.controls()
+        del rules[1]['parameters']['require_code_owner_review']
+        with self.assertRaisesRegex(gate.Rejected,'CODEOWNER review'):
+            gate.validate_controls(repo,rules,sets)
+        repo,rules,sets=self.controls()
+        rules.append(dict(type='pull_request',ruleset_id=1,
+                          parameters={'required_approving_review_count':0,'require_code_owner_review':True}))
+        with self.assertRaisesRegex(gate.Rejected,'CODEOWNER review'):
+            gate.validate_controls(repo,rules,sets)
     def test_owner_admin_pr_only_exception_preserved(self):
         repo,rules,sets=self.controls();sets[0]['bypass_actors']=[dict(actor_id=5,actor_type='RepositoryRole',bypass_mode='pull_request')]
         gate.validate_controls(repo,rules,sets)
@@ -312,7 +327,7 @@ class DeliveryTests(unittest.TestCase):
         for count in (0, 1, 2, 3, True, None):
             repo,rules,sets=APIAndControlsTests().controls()
             rules.append(dict(type='pull_request',ruleset_id=1,
-                              parameters={'required_approving_review_count':count}))
+                              parameters={'required_approving_review_count':count,'require_code_owner_review':False}))
             with self.subTest(count=count):
                 if type(count) is int and count in (0,1):
                     gate.validate_controls(repo,rules,sets)

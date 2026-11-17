@@ -209,6 +209,24 @@ class CreationTests(unittest.TestCase):
                 self.create()
             self.assertEqual(self.api.calls, [])
 
+    def test_review_comment_byte_limit_precedes_any_network_mutation(self):
+        self.receipt['review']['summary']=''
+        self.receipt['report_sha256']=m.review.digest(m.review.canonical(self.receipt['review']))
+        overhead=len((m.REVIEW_MARKER+m.review.canonical(self.receipt)+'\n').encode())
+        self.receipt['review']['summary']='x'*(m.MAX_REVIEW_COMMENT_BYTES-overhead)
+        self.receipt['report_sha256']=m.review.digest(m.review.canonical(self.receipt['review']))
+        self.assertEqual(len((m.REVIEW_MARKER+m.review.canonical(self.receipt)+'\n').encode()),60000)
+        m.validate_receipt(self.receipt,self.request,self.enrollment,m.timestamp(m.review.utc()))
+        for suffix in ('x','é'):
+            oversized=copy.deepcopy(self.receipt)
+            oversized['review']['summary']+=suffix
+            oversized['report_sha256']=m.review.digest(m.review.canonical(oversized['review']))
+            with self.subTest(suffix=suffix),self.assertRaisesRegex(m.review.CaptureError,'downstream comment bound'):
+                self.create(receipt=oversized)
+            self.assertEqual(self.api.calls,[])
+            self.assertFalse(self.journal.exists())
+            self.assertFalse(self.output.exists())
+
     def test_preexisting_output_journal_or_supplied_nonce_prevent_reuse(self):
         for target in (self.output, self.journal):
             target.write_text('prior-state')

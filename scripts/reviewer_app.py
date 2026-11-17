@@ -145,6 +145,8 @@ def validate_controls(repo, rules, rulesets, *, require_legacy=False, require_su
                 any(c.get('context') == 'ci-required' and c.get('integration_id') == CI_APP_ID
                     for c in r.get('required_status_checks', [])) for r in required), 'strict CI15368 required')
     reviews = by_type.get('pull_request', [])
+    require(all(r.get('require_code_owner_review') is False for r in reviews),
+            'CODEOWNER review must be explicitly disabled for App-only delivery')
     require(all(type(r.get('required_approving_review_count')) is int
                 and 0 <= r['required_approving_review_count'] <= 1 for r in reviews),
             'review controls missing: incompatible applicable approval requirement')
