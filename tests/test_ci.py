@@ -127,7 +127,9 @@ class InventoryAndWorkflow(unittest.TestCase):
     self.assertEqual(command['env']['CI_NEEDS'],'${{ toJSON(needs) }}')
  def test_unenrolled_writer_remains_disabled(self):
   p=ci.parse((ROOT/'.github/review-enrollments.json').read_bytes())
-  self.assertEqual(p,{'schema':'g1-review-enrollments/v1','repository_id':1281300995,
-   'repository_names':['KleinPerkins/ecosystem-orchestrator'],'enabled':False,'producers':[]})
+  self.assertEqual({k:p[k] for k in ('schema','repository_id','repository_names','enabled','producers')},
+   {'schema':'g1-review-enrollments/v1','repository_id':1281300995,
+    'repository_names':['KleinPerkins/ecosystem-orchestrator'],'enabled':False,'producers':[]})
+  self.assertEqual(p['governance']['phase'],'G1-initial-source-writer-off')
 
 if __name__=='__main__':unittest.main()
