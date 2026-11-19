@@ -223,3 +223,25 @@ Applies to `Affirm/card-platform-product` PRs opened by `lib/vendor.sh` (payload
   and bot approval.
 
 Historical G4 runnerless proof remains in Git history; it does not qualify current CI/App delivery.
+
+### Original-source name continuity
+
+Skills and MCP operations resolve the unchanged local roots in `config/relationship.yml`;
+`source_skills_repo` and `source_mcp_repo` are relationship metadata, not clone/fetch instructions.
+The original immutable IDs and retained-name endpoints are recorded alongside those active URLs.
+No new network preflight or runtime resolver is needed for local-path continuity.
+
+The active URLs stay at their current names before the separately released name transaction.
+During that transaction the owner must read back each retained endpoint with
+`gh api repos/OWNER/REPOSITORY --jq '{id,full_name}'`, require the declared original numeric ID
+and exact retained name (no redirects), and verify every original Git store's effective
+`git remote get-url --all origin` and `git remote get-url --push --all origin` values. Change
+those fetch/push URLs only under the released host transaction, then change the corresponding
+active relationship URL to its declared retained endpoint. A successor reusing an old name has
+a different ID and cannot satisfy that identity check. Recheck all endpoint/ID pairs after the
+swap; a stale push URL to the reused name must stop conflicting publishers.
+
+Keep local source roots, lockkit targets, registry, exact pins and digests unchanged. Verify the
+existing owner lock/content checks before resuming publishers. Historical receipts and accepted
+plans retain their original bytes. This metadata preparation performs no name swap, host
+operation, downstream CPP change, sync or runtime adoption.

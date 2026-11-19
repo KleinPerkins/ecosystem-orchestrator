@@ -5,9 +5,15 @@ schema: orchestrator-relationship/v1
 # --- Upstream (ld) global masters: sources of vendorable capabilities ---
 source_skills_local: ~/dev/capabilities/skills
 source_skills_global: ~/dev/capabilities/skills/global
+# Active URLs remain unchanged before the separately released name transaction.
+# Retained endpoints are aliases only for these immutable original repository IDs.
 source_skills_repo: git@github.com:KleinPerkins/skills.git
+source_skills_repo_id: 1275604090
+source_skills_retained_repo: git@github.com:KleinPerkins/skills-private-original.git
 source_mcp_local: ~/dev/capabilities/mcp
 source_mcp_repo: git@github.com:KleinPerkins/kp-mcp.git
+source_mcp_repo_id: 1271164179
+source_mcp_retained_repo: git@github.com:KleinPerkins/kp-mcp-private-original.git
 
 # --- Downstream consumer (cpp), the governed target ---
 cpp_repo: Affirm/card-platform-product
